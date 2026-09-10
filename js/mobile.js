@@ -10,7 +10,7 @@
 //   reader  — one phone per entry in screens[], with the progress bar at it
 //   steps   — the 2x2 picture grid and the numbered list, commands only
 
-import { el, imageSlot, coverSlot, screenSlot, stepSlot, screenContext } from './views.js';
+import { el, imageSlot, coverSlot, screenSlot, stepSlot, screenContext, itemContext } from './views.js';
 import { threadButton } from './thread.js';
 
 // ------------------------------------------------------------------- icons
@@ -328,11 +328,12 @@ function stepsScreen(item) {
 // -------------------------------------------------------------------- view
 
 // The label above a phone is the only chrome the mockup allows: a note button
-// inside the frame would be pixels the design does not have.
-const slot = (label, id, screen, note) =>
+// inside the frame would be pixels the design does not have. `anchor` is what
+// the note panel focuses on — see thread.js.
+const slot = (label, id, screen, note, anchor) =>
   el(
     'div',
-    { class: 'mv-slot' },
+    { class: 'mv-slot', dataset: anchor ? { anchor } : null },
     el('div', { class: 'mv-label' }, label, id ? el('code', { text: id }) : null, note || null),
     screen,
   );
@@ -340,25 +341,33 @@ const slot = (label, id, screen, note) =>
 export function mobileItemView(ctx, item, id) {
   const phones = el('div', { class: 'mv' });
 
+  // The info screen takes notes like any other screen; its anchor is the item's
+  // own, because a note about the cover, the title or the description is a note
+  // about this screen and nothing else.
+  const info = itemContext(item);
   phones.append(
     slot(
       item.type === 'command' ? 'Info screen' : 'Article info',
       null,
       item.type === 'command' ? commandInfoScreen(item) : articleInfoScreen(item),
+      threadButton(info, { compact: true }),
+      info.anchor,
     ),
   );
 
   const screens = item.screens || [];
-  screens.forEach((screen, index) =>
+  screens.forEach((screen, index) => {
+    const context = screenContext(item, screen, index);
     phones.append(
       slot(
         `${index + 1}/${screens.length}`,
         screen.id,
         readerScreen(item, screen, index),
-        threadButton(screenContext(item, screen, index), { compact: true }),
+        threadButton(context, { compact: true }),
+        context.anchor,
       ),
-    ),
-  );
+    );
+  });
 
   if (item.steps?.length) phones.append(slot('Training steps', null, stepsScreen(item)));
 

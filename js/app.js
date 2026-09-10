@@ -197,6 +197,8 @@ async function route({ keepScroll = false } = {}) {
 
   const at = window.scrollY;
   show(chrome(active), el('main', { class: 'page' }, body));
+  // The panel survives a repaint; the focus classes it puts on the page do not.
+  thread.refocus();
   // An upload repaints the page under the designer; putting them back at the
   // top of a nine-screen item would lose the screen they were working on.
   window.scrollTo(0, keepScroll ? at : 0);

@@ -146,10 +146,14 @@ export const cardSlot = (ctx, collection) => ({
 // is the id and the part, nothing else. `subject` is the sentence under the
 // note, which carries the wording as it was when the note was written.
 
+// The item anchor addresses the info screen: cover, title, description, and for
+// a command the facts table. That screen is what a note about "the item as a
+// whole" was always about, so the anchor stays as it was and only the sentence
+// under the note says where the note is written.
 export const itemContext = (item) => ({
   anchor: comments.itemAnchor(item.id),
   title: item.id,
-  subject: `the ${item.type} \`${item.id}\` — “${item.title}”`,
+  subject: `the info screen of the ${item.type} \`${item.id}\` — “${item.title}”`,
 });
 
 export const screenContext = (item, screen, index) => ({
@@ -423,12 +427,22 @@ export function itemView(ctx, item, id, siblings) {
     );
   }
 
+  // The head is the info screen in CRM clothing — same cover, title,
+  // description and facts — so it carries the info-screen note and answers to
+  // the same anchor the Mobile View phone does.
+  const info = itemContext(item);
   const head = el(
     'header',
-    { class: 'item-head' },
+    { class: 'item-head', dataset: { anchor: info.anchor } },
     el(
       'div',
       { class: 'item-cover' },
+      el(
+        'div',
+        { class: 'info-top' },
+        el('span', { class: 'phone-index', text: item.type === 'command' ? 'Info screen' : 'Article info' }),
+        threadButton(info, { compact: true }),
+      ),
       imageSlot('cover', item.imageId, { ratio: '4 / 3', label: 'No cover yet', slot: coverSlot(item) }),
     ),
     el(
@@ -458,16 +472,17 @@ export function itemView(ctx, item, id, siblings) {
   const screens = el(
     'div',
     { class: 'screens' },
-    (item.screens || []).map((screen, index) =>
-      el(
+    (item.screens || []).map((screen, index) => {
+      const context = screenContext(item, screen, index);
+      return el(
         'article',
-        { class: 'phone' },
+        { class: 'phone', dataset: { anchor: context.anchor } },
         el(
           'div',
           { class: 'phone-top' },
           el('span', { class: 'phone-index', text: `${index + 1}/${item.screens.length}` }),
           el('code', { class: 'phone-id', text: screen.id }),
-          threadButton(screenContext(item, screen, index), { compact: true }),
+          threadButton(context, { compact: true }),
         ),
         imageSlot('screen', screen.imageId, { ratio: '1 / 1', slot: screenSlot(item, screen) }),
         el(
@@ -476,8 +491,8 @@ export function itemView(ctx, item, id, siblings) {
           el('h3', { text: screen.title }),
           el('p', { text: screen.body }),
         ),
-      ),
-    ),
+      );
+    }),
   );
 
   const steps = item.steps?.length
@@ -489,16 +504,17 @@ export function itemView(ctx, item, id, siblings) {
           { class: 'steps' },
           [...item.steps]
             .sort((a, b) => a.index - b.index)
-            .map((step) =>
-              el(
+            .map((step) => {
+              const context = stepContext(item, step);
+              return el(
                 'li',
-                { class: 'step' },
+                { class: 'step', dataset: { anchor: context.anchor } },
                 el('span', { class: 'ordinal', text: String(step.index) }),
                 imageSlot('screen', step.imageId, { ratio: '1 / 1', label: 'No image', slot: stepSlot(item, step) }),
                 el('p', { text: step.text }),
-                threadButton(stepContext(item, step), { compact: true }),
-              ),
-            ),
+                threadButton(context, { compact: true }),
+              );
+            }),
         ),
       )
     : null;
@@ -507,6 +523,10 @@ export function itemView(ctx, item, id, siblings) {
     'div',
     {},
     backLink(ctx, siblings),
+    // Focus mode hides everything but the screen the open note is about, and
+    // the item title lives on the info screen — which is one of the things it
+    // hides. This line is that title, and it is shown only then.
+    el('div', { class: 'focus-crumb' }, el('code', { text: item.id }), el('span', { text: item.title })),
     head,
     section(`Screens`, `${item.screens?.length || 0}`, screens),
     steps,
@@ -535,15 +555,14 @@ export function siblingNav(ctx, siblings) {
 /** The one-line identity of an item: type, release standing, id. */
 export function itemMeta(ctx, item) {
   const shipped = (ctx.rel.manifest.items || []).includes(item.id);
+  // No note button here: a note is written about a screen, and the screen this
+  // line sits above is the info screen, which carries its own button.
   return el(
     'div',
     { class: 'page-meta' },
     typeBadge(item.type),
     shipped ? null : el('span', { class: 'badge badge-draft', text: `not in ${ctx.rel.id}` }),
     el('code', { class: 'muted', text: item.id }),
-    // The whole-item thread. It sits in the meta line because that line is in
-    // both views, so an item has one place for a note about it either way.
-    threadButton(itemContext(item)),
   );
 }
 

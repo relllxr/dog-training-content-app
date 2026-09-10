@@ -87,6 +87,26 @@ export function close() {
     panel.replaceChildren();
   }
   document.body.classList.remove('thread-on');
+  refocus();
+}
+
+// ------------------------------------------------------------------- focus
+//
+// An open panel takes a quarter of the width, and the grid under it collapses
+// to one column of screens the note may or may not be about. So while the panel
+// is open the page shows one thing: the screen the note is anchored to. Every
+// card that can be noted carries `data-anchor`; the match gets `.thread-target`
+// and the page gets `.thread-focus`, and the two classes are all the CSS needs.
+//
+// Posting a note repaints the page, which throws the classes away — hence this
+// is exported and called again after each repaint (app.js), not set once.
+export function refocus() {
+  for (const node of document.querySelectorAll('.thread-target')) node.classList.remove('thread-target');
+  const target = current ? document.querySelector(`[data-anchor="${CSS.escape(current)}"]`) : null;
+  if (target) target.classList.add('thread-target');
+  // No target means the anchor is not on this page — a note opened from a card
+  // in a list, say. Focus would then hide everything, so it stays off.
+  document.body.classList.toggle('thread-focus', Boolean(target));
 }
 
 export async function open(context) {
@@ -94,6 +114,8 @@ export async function open(context) {
   current = context.anchor;
   node.hidden = false;
   document.body.classList.add('thread-on');
+
+  refocus();
 
   const found = comments.threadFor(context.anchor);
   const list = el('div', { class: 'thread-list' });

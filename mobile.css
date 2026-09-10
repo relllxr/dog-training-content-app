@@ -223,10 +223,16 @@
 
 /* -------------------------------------------------------- article info screen */
 
+/* The mockup draws this sheet 599px tall under a one-line description. Real
+   ones run longer, so 599 is the floor and the sheet grows down to where the
+   Start button begins (742px, less a 24px gap). The phone itself does not
+   stretch — 393x852 is the device — so past that the text scrolls. */
 .mv-article .mv-sheet {
   position: absolute;
   inset: 0 0 auto 0;
-  height: 599px;
+  height: auto;
+  min-height: 599px;
+  max-height: 718px;
   display: flex;
   flex-direction: column;
   border-radius: 0 0 32px 32px;
@@ -242,12 +248,13 @@
   background: linear-gradient(to bottom, #f8f8f800, #f8f8f8);
   z-index: 2;
 }
-/* Real descriptions run longer than the one in the mockup. Scrolling inside the
-   phone keeps the frame honest without hiding text from review — the same thing
-   the reader screen does. */
+/* Takes what the sheet has left, and scrolls only once the sheet has grown as
+   far as it can. Scrolling inside the phone keeps the frame honest without
+   hiding text from review — the same thing the reader screen does. */
 .mv-article .mv-intro {
   padding: 0 16px;
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   gap: 24px;

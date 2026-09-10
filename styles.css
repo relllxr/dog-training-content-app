@@ -368,6 +368,9 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
 /* --------------------------------------------------------------- item page */
 
 .item-head { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 1.75rem; margin-bottom: 2rem; }
+.item-cover { display: flex; flex-direction: column; gap: 0.5rem; }
+/* The same line a screen card has, over the cover: what this is, and its note. */
+.info-top { display: flex; align-items: center; gap: 0.5rem; }
 .item-cover .shot { border-radius: var(--radius); box-shadow: var(--shadow); }
 .item-intro { display: flex; flex-direction: column; gap: 0.7rem; }
 .item-intro h1 { font-size: 1.9rem; letter-spacing: -0.02em; }
@@ -485,6 +488,28 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
   body.thread-on .page { padding-right: calc(24rem + 1.5rem); }
   body.thread-on .chrome { padding-right: calc(24rem + 1.5rem); }
 }
+
+/* Focus: while the panel is open the page is the one screen the note is about.
+   Everything notable carries data-anchor, so hiding the rest is two rules — and
+   a block whose contents all went away goes with them. */
+body.thread-focus [data-anchor]:not(.thread-target) { display: none; }
+body.thread-focus .block:not(:has(.thread-target)) { display: none; }
+body.thread-focus .mv-slot:not(.thread-target) { display: none; }
+body.thread-focus .sibling-nav { display: none; }
+.focus-crumb { display: none; }
+body.thread-focus .focus-crumb {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  font-size: 15px;
+  font-weight: 600;
+}
+body.thread-focus .focus-crumb code { color: var(--muted); font-weight: 400; }
+/* "Screens 7" over one screen would be a lie; the label alone is not. */
+body.thread-focus .block h2 .count { display: none; }
+/* One card in an auto-fill grid would stretch across the row. */
+body.thread-focus .screens { grid-template-columns: minmax(0, 26rem); }
 
 .thread-head {
   display: grid;
