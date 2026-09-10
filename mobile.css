@@ -1,0 +1,441 @@
+/* Mobile View — the content inside the real app mockups.
+ *
+ * Every number here comes from the Figma file "Dog Training Content Mockups"
+ * (rfaH5CCK0bHUgptev18c3c), section Mockups:
+ *
+ *   1:1443  reader_commands_and_articles_with_picture
+ *   1:1453  commands_info_screen
+ *   1:1622  commands_training_steps
+ *   1:1857  articles_info_screen
+ *
+ * All four frames are 393x852 (iPhone 15/16 logical size) and the phones are
+ * drawn 1:1, so a px here is a px in the design. When the mockups move, this
+ * file is the only thing to re-measure — nothing in js/mobile.js carries a size.
+ */
+
+.mv {
+  --ink: #1a1a1a;
+  --blue: #0088ff;
+  --hair: #1a1a1a14;
+  --dim: #1a1a1a80;
+  --sheet: #f3f2f7;
+  --fredoka: 'Fredoka', ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
+  --nunito: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem 1.75rem;
+  color-scheme: light; /* the mockups are a light-mode design */
+}
+
+.mv-slot { display: flex; flex-direction: column; gap: 0.5rem; width: 393px; }
+.mv-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mv-label code { font-size: 11px; }
+
+/* The device. No bezel: the mockup frame is the device, and a drawn bezel would
+   add pixels that are not in the design. */
+.mv-screen {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 28px;
+  background: #ffffff;
+  color: var(--ink);
+  font-family: var(--nunito);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 18px 40px -24px rgb(0 0 0 / 0.45);
+}
+.mv-screen * { box-sizing: border-box; }
+.mv-screen p, .mv-screen h1, .mv-screen h2, .mv-screen h3 { margin: 0; }
+
+/* ---------------------------------------------------------------- status bar */
+
+.mv-status {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 59px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 3;
+}
+.mv-status .time {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  width: 112px;
+  text-align: center;
+  padding-top: 2px;
+}
+.mv-status .levels { display: flex; align-items: center; gap: 7px; }
+.mv-status svg { display: block; }
+.mv-status.on-image { color: #ffffff; }
+
+/* -------------------------------------------------------------------- header */
+
+/* reader + steps: title row 44 high at y67, then 12, then progress 28 high */
+.mv-header { position: absolute; left: 16px; top: 67px; width: 361px; z-index: 2; }
+.mv-title-row { display: flex; align-items: center; gap: 8px; height: 44px; }
+.mv-title-row h1 {
+  flex: 1;
+  font-family: var(--nunito);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mv-round {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #ebebed;
+  color: #ffffff;
+}
+.mv-round svg { width: 20px; height: 20px; }
+.mv-round-dark { background: var(--ink); }
+.mv-round-quiet { color: #a3a3a8; }
+.mv-round-scrim { background: rgb(26 26 26 / 0.28); backdrop-filter: blur(4px); }
+.mv-round-ghost { visibility: hidden; }
+
+.mv-progress { display: flex; gap: 8px; margin-top: 12px; height: 28px; }
+.mv-progress > div { display: flex; flex-direction: column; gap: 6px; }
+.mv-progress .lane-wide { flex: 1; }
+.mv-progress .lane-narrow { width: 86px; flex: none; }
+.mv-progress .lane-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 14.4px;
+}
+.mv-progress .lane-label svg { width: 15px; height: 14px; }
+.mv-progress .off { color: var(--dim); }
+.mv-progress .segments { display: flex; gap: 4px; height: 8px; }
+.mv-progress .segments i { flex: 1; border-radius: 6px; background: var(--hair); }
+.mv-progress .segments i.on { background: var(--blue); }
+.mv-progress .bar { height: 8px; border-radius: 6px; background: var(--hair); overflow: hidden; }
+.mv-progress .bar span { display: block; height: 100%; border-radius: 6px; background: var(--blue); }
+.mv-progress .bar.done span { background: var(--ink); }
+
+/* ------------------------------------------------------------- bottom button */
+
+.mv-cta {
+  position: absolute;
+  left: 16px;
+  top: 742px;
+  width: 361px;
+  height: 70px;
+  border-radius: 32px;
+  background: var(--ink);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--fredoka);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 22px;
+  z-index: 2;
+}
+.mv-cta svg { width: 24px; height: 24px; }
+.mv-cta-row { display: flex; gap: 12px; }
+.mv-cta-row .mv-cta { position: static; width: 232px; }
+/* The clicker is two stacked rounded rects — a lit face over a darker body. */
+.mv-clicker { position: relative; width: 117px; height: 70px; flex: none; }
+.mv-clicker .body {
+  position: absolute;
+  inset: 5px -2px 0 0;
+  border-radius: 32px;
+  background: var(--blue);
+}
+.mv-clicker .face {
+  position: absolute;
+  inset: 0 0 5px 0;
+  border-radius: 32px;
+  background: #2fa4f5;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 19.2px;
+  color: #ffffff;
+}
+.mv-clicker .gloss {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  border: 2px solid rgb(255 255 255 / 0.28);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+}
+
+/* ------------------------------------------------------------- reader screen */
+
+.mv .mv-content, .mv .mv-intro, .mv .mv-sheet > .top, .mv-steps ol { scrollbar-width: thin; }
+
+.mv-reader .mv-content {
+  position: absolute;
+  left: 16px;
+  top: 175px;
+  width: 361px;
+  max-height: 551px; /* down to the CTA at y742, less the 16 gap */
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.mv-reader .hero { width: 361px; height: 268px; border-radius: 24px; overflow: hidden; }
+.mv-reader .mv-text { margin-top: 16px; }
+.mv-reader h2 {
+  font-family: var(--fredoka);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 38.4px;
+  color: var(--blue);
+}
+.mv-reader p {
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 21.6px;
+  color: #000000;
+}
+
+/* -------------------------------------------------------- article info screen */
+
+.mv-article .mv-sheet {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 599px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0 0 32px 32px;
+  background: #f8f8f8;
+  padding-bottom: 24px;
+  overflow: hidden;
+}
+.mv-article .hero { position: relative; width: 393px; height: 435px; flex: none; }
+.mv-article .hero .fade {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 74px;
+  background: linear-gradient(to bottom, #f8f8f800, #f8f8f8);
+  z-index: 2;
+}
+/* Real descriptions run longer than the one in the mockup. Scrolling inside the
+   phone keeps the frame honest without hiding text from review — the same thing
+   the reader screen does. */
+.mv-article .mv-intro {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  overflow: auto;
+  min-height: 0;
+}
+.mv-article .pill {
+  border-radius: 24px;
+  background: #8600df;
+  color: #ffffff;
+  padding: 6px 24px;
+  font-family: var(--fredoka);
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 38.4px;
+  text-align: center;
+}
+.mv-article .desc {
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 21.6px;
+  text-align: center;
+  color: #000000;
+}
+.mv-article .mv-round { position: absolute; left: 16px; top: 59px; z-index: 3; }
+
+/* -------------------------------------------------------- command info screen */
+
+.mv-command { background: var(--sheet); }
+.mv-command .paws {
+  position: absolute;
+  color: #1a1a1a;
+  opacity: 0.07;
+  z-index: 0;
+}
+.mv-command .paws.tr { right: -16px; top: -13px; }
+.mv-command .paws.bl { left: -6px; bottom: -5px; }
+.mv-command .mv-nav {
+  position: absolute;
+  left: 16px;
+  top: 59px;
+  width: 361px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 3;
+}
+.mv-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 33px;
+  padding: 8px 16px;
+  border-radius: 16px;
+  background: var(--hair);
+  color: #1a1a1aa3;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 16.8px;
+}
+.mv-status-pill svg { width: 12px; height: 12px; }
+.mv-command .hero { position: absolute; left: 16px; top: 103px; width: 361px; height: 268px; z-index: 1; }
+.mv-command .mv-sheet {
+  position: absolute;
+  inset: 406px 0 0 0;
+  border-radius: 40px 40px 0 0;
+  background: #ffffff;
+  padding: 24px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  z-index: 2;
+}
+.mv-command .mv-sheet > .top { display: flex; flex-direction: column; gap: 24px; overflow: auto; min-height: 0; }
+.mv-command .mv-headings { display: flex; flex-direction: column; gap: 16px; }
+.mv-command h1 {
+  font-family: var(--fredoka);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 33.6px;
+  text-align: center;
+}
+.mv-command .desc { font-size: 16px; font-weight: 500; line-height: 19.2px; text-align: center; }
+.mv-command .mv-cta { position: static; width: 100%; margin-top: auto; }
+
+.mv-table {
+  border-radius: 24px;
+  background: #ffffff;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 0 53px rgb(0 0 0 / 0.08);
+}
+.mv-table .row { display: flex; align-items: center; gap: 8px; height: 28px; }
+.mv-table .left { display: flex; align-items: center; gap: 10px; }
+.mv-table .icon {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 6.36px;
+  display: grid;
+  place-items: center;
+}
+.mv-table .icon svg { width: 16px; height: 16px; }
+.mv-table .icon-difficulty { background: #ff8d2814; color: #ff8d28; }
+.mv-table .icon-time { background: #0088ff14; color: #0088ff; }
+.mv-table .icon-equipment { background: #ffcc0014; color: #ffcc00; }
+.mv-table dt { font-size: 14px; font-weight: 600; line-height: 19.1px; }
+.mv-table dd {
+  margin: 0 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 19.1px;
+  text-align: right;
+}
+.mv-table hr { height: 0; margin: 0; border: 0; border-top: 1px solid var(--hair); }
+.mv-paws { display: flex; gap: 2px; margin-left: auto; }
+.mv-paws svg { width: 19px; height: 17px; color: var(--ink); }
+.mv-paws svg.off { color: #1a1a1a33; }
+
+/* ------------------------------------------------------------- steps screen */
+
+.mv-steps { background: var(--sheet); }
+.mv-steps .mv-grid {
+  position: absolute;
+  left: 16px;
+  top: 182px;
+  width: 361px;
+  display: grid;
+  grid-template-columns: repeat(2, 181px);
+  grid-auto-rows: 135px;
+  z-index: 1;
+}
+.mv-steps .cell { position: relative; width: 181px; height: 135px; }
+.mv-steps .cell .shot { width: 181px; height: 134px; background: none; }
+.mv-steps .cell .shot img { object-fit: contain; padding: 3px 5px; }
+.mv-steps .n {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: #0088ff14;
+  color: var(--blue);
+  display: grid;
+  place-items: center;
+  font-size: 12.1px;
+  font-weight: 800;
+  line-height: 14.5px;
+  z-index: 2;
+}
+.mv-steps .mv-sheet {
+  position: absolute;
+  inset: 502px 0 0 0;
+  border-radius: 40px 40px 0 0;
+  background: #ffffff;
+  padding: 24px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  z-index: 2;
+}
+.mv-steps ol { list-style: none; margin: 0; padding: 0 12px; display: flex; flex-direction: column; gap: 16px; overflow: auto; min-height: 0; }
+.mv-steps li { display: flex; align-items: center; gap: 16px; min-height: 34px; }
+.mv-steps li b {
+  width: 20px;
+  flex: none;
+  text-align: center;
+  font-family: var(--fredoka);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 33.6px;
+  color: var(--blue);
+}
+.mv-steps li span { font-size: 16px; font-weight: 400; line-height: 19.2px; color: #000000; }
+.mv-steps .mv-cta-row { margin-top: auto; }
+
+/* ------------------------------------------------------------------- images */
+
+/* imageSlot's own states carry over from styles.css; here they only need to
+   fill the box the mockup gives them. */
+.mv .shot { width: 100%; height: 100%; border-radius: inherit; }
+.mv .shot-empty, .mv .shot-missing { border-radius: inherit; }
+.mv .shot-id { font-size: 9px; }
+
+@media (max-width: 880px) {
+  .mv { justify-content: center; }
+}
