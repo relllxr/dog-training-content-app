@@ -580,8 +580,8 @@ export function authView(onSubmit, error) {
         if (input.value.trim()) onSubmit(input.value, name.value, email.value);
       },
     },
-    el('h1', { text: 'Pawzi content' }),
-    el('p', { class: 'lede' }, 'Reads ', el('code', { text: SLUG }), ` at ${REF}. Nothing is stored on the server — the content is fetched in your browser with your own token.`),
+    el('h1', { text: 'Dog Training Content CRM' }),
+    el('p', { class: 'lede' }, 'Reads ', el('code', { text: SLUG }), ` at ${REF}. Nothing is stored on the server — the content is fetched in your browser with your token.`),
     error ? el('p', { class: 'error', text: error }) : null,
     el('label', { for: 'token', text: 'Fine-grained personal access token' }),
     input,
@@ -595,40 +595,10 @@ export function authView(onSubmit, error) {
         'Everyone shares one token, so GitHub cannot tell you apart. Your name goes on the pictures you upload and signs the notes you write. You can change it later.',
     }),
     el('button', { type: 'submit', text: 'Open' }),
-    el(
-      'details',
-      { class: 'how' },
-      el('summary', { text: 'How to make one' }),
-      el('p', { class: 'muted', text: 'If someone sent you a token, you do not need this — paste it above.' }),
-      el(
-        'ol',
-        {},
-        el(
-          'li',
-          {},
-          'Open ',
-          el(
-            'a',
-            { href: 'https://github.com/settings/personal-access-tokens/new', target: '_blank', rel: 'noreferrer' },
-            'github.com/settings/personal-access-tokens/new',
-          ),
-          '.',
-        ),
-        el('li', {}, 'Resource owner: the account that owns ', el('code', { text: SLUG }), '.'),
-        el('li', {}, 'Repository access: ', el('b', { text: 'Only select repositories' }), ' → ', el('code', { text: SLUG }), '.'),
-        el(
-          'li',
-          {},
-          'Permissions → Repository: ',
-          el('b', { text: 'Contents' }),
-          ' (Read-only to read, Read and write to upload pictures) and ',
-          el('b', { text: 'Issues' }),
-          ' (Read to see review notes, Read and write to post them). Nothing else is needed.',
-        ),
-        el('li', {}, 'Set an expiry you are comfortable with, create it, and paste it here.'),
-      ),
-      el('p', { class: 'muted', text: 'The token stays in this browser (localStorage) and is sent only to api.github.com.' }),
-    ),
+    // No instructions for making a token: the four that exist are issued by the
+    // account that owns the repository and handed out, so nobody reading this
+    // screen is the person who makes one. See docs/app.md#who-you-are.
+    el('p', { class: 'muted auth-why', text: 'The token stays in this browser (localStorage) and is sent only to api.github.com.' }),
   );
   return form;
 }
