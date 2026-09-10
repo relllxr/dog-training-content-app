@@ -6,7 +6,6 @@ import * as data from './data.js';
 import * as upload from './upload.js';
 import * as comments from './comments.js';
 import { threadButton, itemNoteBadge } from './thread.js';
-import { SLUG, REF } from '../config.js';
 
 export function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
@@ -581,7 +580,6 @@ export function authView(onSubmit, error) {
       },
     },
     el('h1', { text: 'Dog Training Content CRM' }),
-    el('p', { class: 'lede' }, 'Reads ', el('code', { text: SLUG }), ` at ${REF}. Nothing is stored on the server — the content is fetched in your browser with your token.`),
     error ? el('p', { class: 'error', text: error }) : null,
     el('label', { for: 'token', text: 'Fine-grained personal access token' }),
     input,
