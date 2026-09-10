@@ -13,6 +13,7 @@
 import { el } from './views.js';
 import * as data from './data.js';
 import * as gh from './gh.js';
+import * as who from './who.js';
 import * as write from './write.js';
 import { prepare, SHIPPED_3X_WIDTH, POINT_WIDTH } from './resize.js';
 
@@ -104,6 +105,10 @@ export function attach(figure, slot) {
 // -------------------------------------------------------------------- dialog
 
 async function open(slot, file) {
+  // The commit will be signed, so the name is asked for before the picture is
+  // read rather than at the end, where it would interrupt a finished decision.
+  if (!(await who.ensure())) return;
+
   const panel = el('div', { class: 'dlg-body' }, el('p', { class: 'muted', text: `Reading ${file.name}…` }));
   const dialog = el(
     'dialog',

@@ -8,6 +8,7 @@ import * as data from './data.js';
 import * as cache from './cache.js';
 import * as comments from './comments.js';
 import * as thread from './thread.js';
+import * as who from './who.js';
 import * as views from './views.js';
 import { mobileItemView } from './mobile.js';
 import { el } from './views.js';
@@ -80,6 +81,16 @@ function chrome(active) {
       comments.available()
         ? null
         : el('span', { class: 'muted chip', text: 'notes off', title: comments.reason() }),
+      // The name everything written from this browser is signed with. Visible
+      // because a shared token makes it the only thing that says who you are.
+      el('button', {
+        class: `chip ghost who${who.known() ? '' : ' who-unset'}`,
+        text: who.known() ? who.me().name : 'Set your name',
+        title: who.known()
+          ? `Pictures and notes are signed ${who.me().name} <${who.me().email}>. Click to change.`
+          : 'The token is shared. Say who you are, so what you write carries your name.',
+        onclick: () => who.edit(),
+      }),
       el('span', { class: 'muted repo', text: `${SLUG}@${REF}` }),
       el('button', {
         class: 'ghost',
@@ -90,9 +101,10 @@ function chrome(active) {
       el('button', {
         class: 'ghost',
         text: 'Sign out',
-        title: 'Forget the token in this browser',
+        title: 'Forget the token and the name in this browser',
         onclick: () => {
           gh.forgetToken();
+          who.forget();
           location.reload();
         },
       }),
@@ -266,8 +278,9 @@ async function boot() {
   }
 }
 
-async function onToken(value) {
+async function onToken(value, name, email) {
   gh.setToken(value);
+  if (name?.trim() && email?.trim()) who.remember(name, email);
   try {
     await gh.repository();
   } catch (e) {
@@ -289,6 +302,10 @@ window.addEventListener('hashchange', () => {
 // A posted note changes counts on cards the page is already showing. The panel
 // lives on <body>, so redrawing under it costs nothing and keeps them true.
 window.addEventListener('pawzi:thread', () => {
+  route({ keepScroll: true }).catch(() => {});
+});
+
+window.addEventListener('pawzi:who', () => {
   route({ keepScroll: true }).catch(() => {});
 });
 

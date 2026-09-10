@@ -534,3 +534,13 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
 .thread-actions .primary { background: var(--accent); color: var(--bg); border-color: transparent; }
 .thread-actions .primary:disabled { opacity: 0.5; cursor: default; }
 .thread .error:empty { display: none; }
+
+/* -------------------------------------------------------------------- who */
+
+button.chip.who { padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--muted); }
+button.chip.who:hover { color: var(--text); }
+button.chip.who-unset { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.msg-account { font-size: 11px; }
+.dlg-who .dlg-fields + .dlg-fields { margin-top: 0.3rem; }
+.dlg-who .dlg-fields p { font-size: 12px; margin-top: 0.15rem; }
+.auth-why { font-size: 12px; margin-top: 0.15rem; }

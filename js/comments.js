@@ -16,6 +16,7 @@
 // the notes and nothing else: the index simply reports why it is empty.
 
 import * as gh from './gh.js';
+import * as who from './who.js';
 
 /** Issues carry it for `gh`; the reader never relies on it being there. */
 export const LABEL = 'content-comment';
@@ -88,16 +89,20 @@ export async function load() {
 }
 
 function thread(issue, anchor) {
+  // The account that owns the token opened the issue; the signature on the
+  // body says who actually wrote it. Prefer the signature, fall back to the
+  // account for anything written on GitHub directly.
+  const signed = who.unsign((issue.body || '').replace(FOOTER, '').trim());
   return {
     anchor,
     number: issue.number,
     title: issue.title,
     open: issue.state === 'open',
     url: issue.html_url,
-    author: issue.user?.login || 'someone',
+    account: issue.user?.login || 'someone',
+    author: signed.name || issue.user?.login || 'someone',
     at: issue.created_at,
-    // The body is the first message; the footer under it is the reader's own.
-    text: (issue.body || '').replace(FOOTER, '').trim(),
+    text: signed.text,
     replies: issue.comments || 0,
   };
 }
@@ -120,17 +125,22 @@ export function countsFor(itemId) {
 
 /** The whole thread: the issue body, then its comments. One call. */
 export async function messages(found) {
-  const first = { author: found.author, at: found.at, text: found.text, url: found.url };
+  const first = { author: found.author, account: found.account, at: found.at, text: found.text, url: found.url };
   if (!found.replies) return [first];
   const rest = await gh.issueComments(found.number);
   return [
     first,
-    ...rest.map((comment) => ({
-      author: comment.user?.login || 'someone',
-      at: comment.created_at,
-      text: (comment.body || '').trim(),
-      url: comment.html_url,
-    })),
+    ...rest.map((comment) => {
+      const signed = who.unsign((comment.body || '').trim());
+      const account = comment.user?.login || 'someone';
+      return {
+        author: signed.name || account,
+        account,
+        at: comment.created_at,
+        text: signed.text,
+        url: comment.html_url,
+      };
+    }),
   ];
 }
 
@@ -152,7 +162,7 @@ export async function open(context, text) {
 }
 
 export async function reply(found, text) {
-  await gh.addComment(found.number, text.trim());
+  await gh.addComment(found.number, who.sign(text));
   found.replies += 1;
   announce();
   return found;
@@ -173,7 +183,7 @@ export async function resolve(found, done) {
 function compose(text, context) {
   const link = context.link ? ` Opened from ${context.link}` : '';
   return (
-    `${text.trim()}\n\n---\n<sub><!-- pawzi:anchor ${context.anchor} -->${context.subject}. ` +
+    `${who.sign(text)}\n\n---\n<sub><!-- pawzi:anchor ${context.anchor} -->${context.subject}. ` +
     `The marker in this line is how the reader finds this thread — please leave it.${link}</sub>\n`
   );
 }

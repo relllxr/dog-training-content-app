@@ -559,13 +559,25 @@ export function authView(onSubmit, error) {
     spellcheck: 'false',
   });
 
+  // The token is shared, so it says nothing about who is holding it. Asking
+  // here costs one field and means the first picture or note already carries a
+  // name — see who.js.
+  const name = el('input', { type: 'text', id: 'auth-name', placeholder: 'Anna Petrova', autocomplete: 'name' });
+  const email = el('input', {
+    type: 'email',
+    id: 'auth-email',
+    placeholder: 'anna@example.com',
+    autocomplete: 'email',
+    spellcheck: 'false',
+  });
+
   const form = el(
     'form',
     {
       class: 'auth',
       onsubmit: (e) => {
         e.preventDefault();
-        if (input.value.trim()) onSubmit(input.value);
+        if (input.value.trim()) onSubmit(input.value, name.value, email.value);
       },
     },
     el('h1', { text: 'Pawzi content' }),
@@ -573,11 +585,21 @@ export function authView(onSubmit, error) {
     error ? el('p', { class: 'error', text: error }) : null,
     el('label', { for: 'token', text: 'Fine-grained personal access token' }),
     input,
+    el('label', { for: 'auth-name', text: 'Your name' }),
+    name,
+    el('label', { for: 'auth-email', text: 'Your email' }),
+    email,
+    el('p', {
+      class: 'muted auth-why',
+      text:
+        'Everyone shares one token, so GitHub cannot tell you apart. Your name goes on the pictures you upload and signs the notes you write. You can change it later.',
+    }),
     el('button', { type: 'submit', text: 'Open' }),
     el(
       'details',
       { class: 'how' },
       el('summary', { text: 'How to make one' }),
+      el('p', { class: 'muted', text: 'If someone sent you a token, you do not need this — paste it above.' }),
       el(
         'ol',
         {},
@@ -597,13 +619,11 @@ export function authView(onSubmit, error) {
         el(
           'li',
           {},
-          'Permissions → Repository → ',
+          'Permissions → Repository: ',
           el('b', { text: 'Contents' }),
-          ': ',
-          el('b', { text: 'Read-only' }),
-          ' to read, ',
-          el('b', { text: 'Read and write' }),
-          ' to upload pictures. Nothing else is needed.',
+          ' (Read-only to read, Read and write to upload pictures) and ',
+          el('b', { text: 'Issues' }),
+          ' (Read to see review notes, Read and write to post them). Nothing else is needed.',
         ),
         el('li', {}, 'Set an expiry you are comfortable with, create it, and paste it here.'),
       ),

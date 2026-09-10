@@ -175,8 +175,15 @@ export async function createTree(baseTree, entries) {
   return (await send(`${base()}/git/trees`, 'POST', { base_tree: baseTree, tree })).sha;
 }
 
-export async function createCommit(message, tree, parents) {
-  return (await send(`${base()}/git/commits`, 'POST', { message, tree, parents })).sha;
+/**
+ * `author` names the person who made the change. Every token here belongs to
+ * the same account, so without it `git log` would credit that account for
+ * everyone's work; with it, and with no `committer` beside it, GitHub takes
+ * the author for both lines. See who.js.
+ */
+export async function createCommit(message, tree, parents, author) {
+  const body = { message, tree, parents, ...(author ? { author } : {}) };
+  return (await send(`${base()}/git/commits`, 'POST', body)).sha;
 }
 
 /** Moves the branch. `force` stays off, so a branch that moved under us fails. */

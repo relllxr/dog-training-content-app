@@ -12,6 +12,7 @@
 
 import * as gh from './gh.js';
 import * as data from './data.js';
+import * as who from './who.js';
 import { base64 } from './resize.js';
 
 export class StaleError extends Error {}
@@ -45,7 +46,7 @@ export async function commitFiles(message, files) {
 
   const entries = files.map((file, i) => ({ ...file, sha: shas[i] }));
   const tree = await gh.createTree(await gh.commitTree(head), entries);
-  const sha = await gh.createCommit(message, tree, [head]);
+  const sha = await gh.createCommit(message, tree, [head], who.me());
   await gh.updateRef(data.ref(), sha);
 
   return { sha, entries };

@@ -9,6 +9,7 @@
 import { el } from './views.js';
 import * as comments from './comments.js';
 import * as gh from './gh.js';
+import * as who from './who.js';
 
 // ------------------------------------------------------------------- button
 
@@ -184,6 +185,9 @@ function message(msg) {
       'div',
       { class: 'msg-head' },
       el('b', { text: msg.author }),
+      // Written on GitHub rather than here: no signature, so the name shown is
+      // the account, and saying so is more honest than letting it pass as one.
+      msg.author === msg.account ? el('span', { class: 'muted msg-account', text: 'via GitHub' }) : null,
       el('time', { class: 'muted', datetime: msg.at, title: new Date(msg.at).toLocaleString(), text: ago(msg.at) }),
     ),
     el('div', { class: 'msg-body' }, ...rich(msg.text)),
@@ -213,6 +217,8 @@ function composer(context, found) {
 
   async function send() {
     const text = box.value.trim();
+    // The note is signed, so the name is asked for before it is sent.
+    if (!(await who.ensure())) return;
     post.disabled = true;
     post.textContent = 'Posting…';
     problem.textContent = '';
