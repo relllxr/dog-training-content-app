@@ -536,12 +536,12 @@ export function itemView(ctx, item, id, siblings) {
   );
 }
 
-/** Where an item page goes back to: the collection it was opened from, else the library. */
+/** Where an item page goes back to: the collection it was opened from, else the flat item list. */
 export function backLink(ctx, siblings) {
   return el('a', {
     class: 'back',
     href: siblings ? ctx.href(`c/${siblings.key}`) : ctx.href('library'),
-    text: siblings ? `← ${siblings.title}` : '← Library',
+    text: siblings ? `← ${siblings.title}` : '← All content items',
   });
 }
 
