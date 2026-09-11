@@ -173,8 +173,10 @@ export const stepContext = (item, step) => ({
 const typeBadge = (type) => el('span', { class: `badge badge-${type}`, text: type });
 
 function difficultyDots(level) {
-  const dots = el('span', { class: 'dots', title: `Difficulty ${level} of 4` });
-  for (let i = 1; i <= 4; i++) dots.append(el('i', { class: i <= level ? 'on' : '' }));
+  // The scale is five (schema/item.command.json: maximum 5), same as the paws in
+  // Mobile View; v1.10 only ever reaches 4, so the fifth dot stays grey.
+  const dots = el('span', { class: 'dots', title: `Difficulty ${level} of 5` });
+  for (let i = 1; i <= 5; i++) dots.append(el('i', { class: i <= level ? 'on' : '' }));
   return dots;
 }
 

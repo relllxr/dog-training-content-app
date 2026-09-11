@@ -136,14 +136,16 @@ function modeSwitch(active) {
         route();
       },
     });
+  // The label is inside the switch, not beside it, so that mode-idle dims the
+  // two together: off an item page the whole control is out of play.
   return el(
     'div',
     {
       class: `mode-switch${onItem ? '' : ' mode-idle'}`,
       title: onItem ? '' : 'Mobile view applies to an item page',
     },
-    pick('crm', 'CRM'),
-    pick('mobile', 'Mobile'),
+    el('span', { class: 'muted mode-label', text: 'View mode:' }),
+    el('div', { class: 'mode-buttons' }, pick('crm', 'CRM'), pick('mobile', 'Mobile')),
   );
 }
 
