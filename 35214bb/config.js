@@ -15,3 +15,11 @@ export const REF = params.get('ref') || 'main';
 // The token is per repository: a fine-grained token is scoped to one repo, so
 // pointing the reader at another one has to ask for its own.
 export const TOKEN_KEY = `pawzi.token.${SLUG}`;
+
+// Which build of the shell this is. `tools/publish-app.mjs` publishes the
+// modules in a directory named for the build, so the version is simply the
+// directory this file sits in; served from `app/` it is the working copy. The
+// header says it out loud, because "am I looking at the old version?" is
+// otherwise answered by guessing.
+const dir = new URL('.', import.meta.url).pathname.replace(/\/$/, '').split('/').pop();
+export const BUILD = /^[0-9a-f]{7,40}(-[0-9a-f]{7,40})?$/.test(dir) ? dir : 'dev';

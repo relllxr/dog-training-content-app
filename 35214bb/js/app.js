@@ -12,7 +12,7 @@ import * as who from './who.js';
 import * as views from './views.js';
 import { mobileItemView } from './mobile.js';
 import { el } from './views.js';
-import { SLUG, REF } from '../config.js';
+import { SLUG, REF, BUILD } from '../config.js';
 
 const root = document.getElementById('root');
 const state = { rel: null, loading: null };
@@ -91,7 +91,18 @@ function chrome(active) {
           : 'The token is shared. Say who you are, so what you write carries your name.',
         onclick: () => who.edit(),
       }),
-      el('span', { class: 'muted repo', text: `${SLUG}@${REF}` }),
+      // What is on screen, in one line: the content read from that repository
+      // at that branch, through this build of the shell. The build is here
+      // because a browser can hold an old bundle long after a publish, and a
+      // reader who cannot see which one they have reports the old bug again.
+      el('span', {
+        class: 'muted repo',
+        text: `${SLUG}@${REF} · ${BUILD}`,
+        title:
+          BUILD === 'dev'
+            ? `Content from ${SLUG}@${REF}. Reader: the local working copy.`
+            : `Content from ${SLUG}@${REF}. Reader built from ${BUILD}.`,
+      }),
       el('button', {
         class: 'ghost',
         text: 'Refresh',
