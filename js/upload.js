@@ -140,10 +140,18 @@ async function open(slot, file) {
 
 function fill(dialog, panel, slot, picture) {
   const fixed = slot.kind === 'preview'; // a preview's name is its item's id
+
+  // The name the dropped file carries wins over the one already in the JSON.
+  // Dropping a file onto a slot that has a picture is most often a correction —
+  // the slot points at the wrong asset, or the asset is misnamed — and offering
+  // the name being corrected made the fix a retype. The id in place is said
+  // under the field instead, so renaming is a decision and not an accident, in
+  // either direction.
+  const dropped = suggest(picture.source.name);
   const nameField = el('input', {
     type: 'text',
     id: 'asset-name',
-    value: slot.imageId || suggest(picture.source.name),
+    value: fixed ? slot.imageId : dropped || slot.imageId || '',
     spellcheck: 'false',
     autocapitalize: 'off',
     disabled: fixed,
@@ -156,10 +164,38 @@ function fill(dialog, panel, slot, picture) {
   const url = URL.createObjectURL(new Blob([picture.two.bytes], { type: 'image/png' }));
   dialog.addEventListener('close', () => URL.revokeObjectURL(url), { once: true });
 
+  // Only worth saying when it is not what the field already holds.
+  const current =
+    !fixed && slot.imageId && slot.imageId !== nameField.value
+      ? el('p', { class: 'muted dlg-current' }, 'now: ', el('code', { text: slot.imageId }))
+      : null;
+
   const notes = el('div', { class: 'dlg-notes' });
   const plan = el('ul', { class: 'dlg-plan' });
   const problem = el('p', { class: 'error' });
   const commit = el('button', { type: 'button', class: 'primary', text: 'Commit', onclick: () => go() });
+
+  // Shown on one failure only: GitHub declining to fast-forward the branch,
+  // which means nothing was written and the branch moved between the head
+  // check and the move. Everything the commit needs is still in memory —
+  // `picture.two` and `picture.three` are the scaled bytes — so a retry is a
+  // head read and the same five calls. Making the designer close this, find the
+  // file and drag it again was the expensive part of the bug, more expensive
+  // than the error itself.
+  const retry = el('button', {
+    type: 'button',
+    class: 'ghost',
+    text: 'Refresh and retry',
+    hidden: true,
+    onclick: async () => {
+      retry.hidden = true;
+      commit.disabled = true;
+      commit.textContent = 'Committing…';
+      problem.textContent = '';
+      await data.refreshHead();
+      go();
+    },
+  });
 
   const source = picture.source;
   const shrunk = source.width > picture.three.width;
@@ -174,6 +210,7 @@ function fill(dialog, panel, slot, picture) {
         { class: 'dlg-fields' },
         el('label', { for: 'asset-name', text: fixed ? 'Name (fixed by convention)' : 'Asset name' }),
         nameField,
+        current,
         notes,
       ),
     ),
@@ -183,6 +220,7 @@ function fill(dialog, panel, slot, picture) {
       'div',
       { class: 'dlg-actions' },
       el('button', { type: 'button', class: 'ghost', text: 'Cancel', onclick: () => dialog.close() }),
+      retry,
       commit,
     ),
   );
@@ -261,6 +299,7 @@ function fill(dialog, panel, slot, picture) {
       if (before) write.restore(slot.target, before);
       problem.textContent =
         e instanceof gh.GitHubError || e instanceof write.StaleError ? e.message : `Could not commit: ${e.message}`;
+      retry.hidden = !e.notFastForward;
       commit.textContent = 'Commit';
       commit.disabled = false;
     }
@@ -279,7 +318,8 @@ function message(slot, value, picture, replacing) {
   // already being there, not the name being the same — and naming it in the
   // subject would only repeat the item id.
   const named = slot.kind === 'preview' ? '' : ` as ${value}`;
-  const subject = replacing ? `Redraw ${slot.what}` : `Draw ${slot.what}${named}`;
+  // Named on both, so `git log --oneline` says which asset a redraw touched.
+  const subject = `${replacing ? 'Redraw' : 'Draw'} ${slot.what}${named}`;
   return (
     `${subject}\n\n` +
     `${picture.three.width}×${picture.three.height} at @3x and ${picture.two.width}×${picture.two.height} at @2x, ` +

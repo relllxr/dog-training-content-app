@@ -13,4 +13,4 @@ Cloud, so the repository serving it cannot be the one holding the content.
 **Do not edit here.** The source of truth is `app/` in the content
 repository, where the reader is versioned alongside what it reads. This copy is
 written by `npm run publish-app` and every commit is overwritten by the next
-one. Built from `10c6dc8`.
+one. Built from `2a1d0db`.

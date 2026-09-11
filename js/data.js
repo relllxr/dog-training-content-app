@@ -33,7 +33,7 @@ export async function loadTree() {
   // an upload commits on top of, and reading the tree by branch name could
   // otherwise straddle someone else's push. A ref that is not a branch leaves
   // head null and uploading is off for that view.
-  state.head = await gh.branchHead(state.ref).catch(() => null);
+  state.head = await newerHead(state.head, await gh.branchHead(state.ref).catch(() => null));
   const data = await gh.tree(state.head || state.ref);
   state.files.clear();
   state.items.clear();
@@ -56,6 +56,27 @@ export async function loadTree() {
     console.warn('The tree came back truncated; some files are missing from the index.');
   }
   return { count: state.files.size, truncated: !!data.truncated };
+}
+
+/**
+ * Refresh must never wind the page back.
+ *
+ * A head that comes back older than the one this page already holds — a replica
+ * behind, a read a cache answered — used to be adopted anyway, and then the
+ * tree was read at it. The page would show the repository as it was before the
+ * last upload: the picture committed a moment ago disappears, and the next
+ * upload is built on a parent one commit behind the branch, which GitHub then
+ * correctly refuses as not a fast forward. Losing visible work reads as losing
+ * data even when nothing is lost, so of two heads this keeps the one in front.
+ */
+async function newerHead(known, remote) {
+  if (!known || !remote || known === remote) return remote;
+  // The same question T2 asks in write.js, answered the same way. A compare
+  // that cannot be had leaves the page on what it already holds; the next
+  // Refresh picks the branch up, and nothing has been shown as current that is
+  // not a real commit of this branch.
+  const status = await gh.compare(known, remote).catch(() => 'behind');
+  return status === 'behind' || status === 'identical' ? known : remote;
 }
 
 function compareVersions(a, b) {
@@ -194,6 +215,21 @@ export function applyCommit(commitSha, entries) {
       state.urls.delete(entry.path);
     }
   }
+}
+
+/**
+ * Re-reads where the branch points and takes it, without re-reading the tree.
+ *
+ * The one place a remote head genuinely ahead of this page is adopted rather
+ * than refused, and it takes an explicit click to get here: the retry button
+ * the upload dialog shows after GitHub declined to fast-forward (upload.js).
+ * The person has been told what happened and asked for the commit to go on top
+ * of what is there now. Everything automatic goes through `newerHead` instead.
+ */
+export async function refreshHead() {
+  const remote = await gh.branchHead(state.ref).catch(() => null);
+  if (remote) state.head = remote;
+  return state.head;
 }
 
 // -------------------------------------------------------------- composition

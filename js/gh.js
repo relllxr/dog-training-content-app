@@ -31,12 +31,19 @@ export function forgetToken() {
 }
 
 export class GitHubError extends Error {
-  constructor(message, status, { rateLimited = false, readOnly = false, conflict = false } = {}) {
+  constructor(
+    message,
+    status,
+    { rateLimited = false, readOnly = false, conflict = false, notFastForward = false } = {},
+  ) {
     super(message);
     this.status = status;
     this.rateLimited = rateLimited;
     this.readOnly = readOnly;
     this.conflict = conflict;
+    // The branch would not move onto our commit. The upload dialog offers a
+    // retry on this one and on nothing else — see upload.js.
+    this.notFastForward = notFastForward;
   }
 }
 
@@ -46,7 +53,7 @@ const WIDER = {
   Issues: 'Posting a note needs Issues: Read and write; reading them needs only Read.',
 };
 
-async function explain(res, writing, need) {
+async function explain(res, { writing, need, moving }) {
   let message = '';
   try {
     const body = await res.json();
@@ -85,18 +92,50 @@ async function explain(res, writing, need) {
     }
     return new GitHubError(message || 'GitHub refused the request.', res.status);
   }
+  // `PATCH /git/refs` answers 422 "Update is not a fast forward" when the
+  // branch no longer points at the commit ours was built on. That is git
+  // talking to someone who reads git; what the person who dropped a picture
+  // needs to know is that nothing was written and the picture is still here.
+  if (moving && res.status === 422) {
+    return new GitHubError(
+      `${moving} moved while this was being committed, so GitHub would not move it onto a commit that is not a descendant. Nothing was written.`,
+      422,
+      { conflict: true, notFastForward: true },
+    );
+  }
   if (res.status === 409 || res.status === 422) {
     return new GitHubError(message || `GitHub answered ${res.status}.`, res.status, { conflict: true });
   }
   return new GitHubError(message || `GitHub answered ${res.status}.`, res.status);
 }
 
-async function request(path, accept, { method = 'GET', body, need = 'Contents' } = {}) {
+/**
+ * Almost everything read here can change under the reader: where a branch
+ * points, the tree at a branch name, the list of notes. GitHub marks all of
+ * them `Cache-Control: private, max-age=60`, and this client sends a constant
+ * `Authorization` and `Accept`, so `Vary` resolves to a hit and the browser
+ * answers the next minute of reads off the disk without going to the network.
+ * A write does not evict them either: the head is read at `git/ref/heads/x`
+ * and moved at `git/refs/heads/x` — a plural apart — and RFC 9111 §4.4 only
+ * invalidates the URI that was written. A page that read the head, committed,
+ * and read the head again would be told the branch had not moved — and then
+ * disagree with itself about where it points.
+ *
+ * So `no-store` is the default and the exceptions are named: a blob, a commit
+ * or a tree asked for **by sha** is content-addressed and cannot go stale, and
+ * that cache is what makes a warm start cheap.
+ */
+async function request(
+  path,
+  accept,
+  { method = 'GET', body, need = 'Contents', cache = 'no-store', moving = null } = {},
+) {
   if (!token) throw new GitHubError('No token yet.', 401);
   let res;
   try {
     res = await fetch(API + path, {
       method,
+      cache,
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: accept,
@@ -108,12 +147,12 @@ async function request(path, accept, { method = 'GET', body, need = 'Contents' }
   } catch (cause) {
     throw new GitHubError('Could not reach api.github.com. Check the connection.', 0);
   }
-  if (!res.ok) throw await explain(res, method !== 'GET', need);
+  if (!res.ok) throw await explain(res, { writing: method !== 'GET', need, moving });
   return res;
 }
 
-const send = async (path, method, body, need) => {
-  const res = await request(path, 'application/vnd.github+json', { method, body, need });
+const send = async (path, method, body, options) => {
+  const res = await request(path, 'application/vnd.github+json', { method, body, ...options });
   return res.json();
 };
 
@@ -129,19 +168,40 @@ export async function repository() {
   return res.json();
 }
 
+/** A full commit sha. The tree under one cannot change; the tree at a name can. */
+const SHA = /^[0-9a-f]{40}$/;
+
 /** The whole file list in one call: path, type and blob sha for every entry. */
 export async function tree(ref) {
   const res = await request(
     `${base()}/git/trees/${encodeURIComponent(ref)}?recursive=1`,
     'application/vnd.github+json',
+    { cache: SHA.test(ref) ? 'default' : 'no-store' },
   );
   return res.json();
 }
 
 /** Raw bytes of a blob. Blobs are content-addressed, so callers can cache forever. */
 export async function blob(sha) {
-  const res = await request(`${base()}/git/blobs/${sha}`, 'application/vnd.github.raw');
+  const res = await request(`${base()}/git/blobs/${sha}`, 'application/vnd.github.raw', {
+    cache: 'default',
+  });
   return res.arrayBuffer();
+}
+
+/**
+ * How `remote` sits relative to `known`: `identical`, `behind`, `ahead` or
+ * `diverged`. A head that differs from ours is not by itself a conflict — it is
+ * also what a stale read looks like, and what this page looks like to a replica
+ * a moment after it has committed. This says which of the two it is, and is
+ * asked only on the path where they differ. See write.js and data.js.
+ */
+export async function compare(known, remote) {
+  const res = await request(
+    `${base()}/compare/${encodeURIComponent(known)}...${encodeURIComponent(remote)}`,
+    'application/vnd.github+json',
+  );
+  return (await res.json()).status;
 }
 
 // -------------------------------------------------------------------- writes
@@ -160,7 +220,9 @@ export async function branchHead(branch) {
 
 /** The tree a commit carries — the base every new tree is layered onto. */
 export async function commitTree(sha) {
-  const res = await request(`${base()}/git/commits/${sha}`, 'application/vnd.github+json');
+  const res = await request(`${base()}/git/commits/${sha}`, 'application/vnd.github+json', {
+    cache: 'default',
+  });
   return (await res.json()).tree.sha;
 }
 
@@ -188,7 +250,9 @@ export async function createCommit(message, tree, parents, author) {
 
 /** Moves the branch. `force` stays off, so a branch that moved under us fails. */
 export async function updateRef(branch, sha) {
-  return send(`${base()}/git/refs/heads/${refPath(branch)}`, 'PATCH', { sha, force: false });
+  return send(`${base()}/git/refs/heads/${refPath(branch)}`, 'PATCH', { sha, force: false }, {
+    moving: branch,
+  });
 }
 
 // -------------------------------------------------------------------- notes
@@ -197,7 +261,7 @@ export async function updateRef(branch, sha) {
 // apart from the rest: a token with only Contents fails here and nowhere else,
 // which is why every one of these calls says Issues when it explains itself.
 
-const issue = (path, method, body) => send(`${base()}/issues${path}`, method, body, 'Issues');
+const issue = (path, method, body) => send(`${base()}/issues${path}`, method, body, { need: 'Issues' });
 
 /** One page of issues, newest first, open and closed. Pull requests included. */
 export async function issues(page) {
@@ -225,7 +289,7 @@ export const setIssueState = (number, state) =>
 /** Creates the label if the repository has not got it. 422 means it already has. */
 export async function ensureLabel(name, color, description) {
   try {
-    await send(`${base()}/labels`, 'POST', { name, color, description }, 'Issues');
+    await send(`${base()}/labels`, 'POST', { name, color, description }, { need: 'Issues' });
   } catch (e) {
     if (e.status !== 422) throw e;
   }

@@ -344,6 +344,8 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
 .dlg-fields { display: flex; flex-direction: column; gap: 0.35rem; }
 .dlg-fields label { font-size: 12px; color: var(--muted); }
 .dlg-fields input:disabled { color: var(--muted); background: var(--sunken); }
+/* The id the slot carries now, when the field is offering a different one. */
+.dlg-current { font-size: 12px; }
 .dlg-notes { display: grid; gap: 0.3rem; font-size: 12px; margin-top: 0.15rem; }
 
 /* What is about to be written, spelled out in paths before anything is sent. */
