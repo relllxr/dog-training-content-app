@@ -275,9 +275,29 @@ export function programsView(ctx) {
   return wrap;
 }
 
+// The order the Library Tab reads in. It lives here and not in
+// releases/<id>/explore.json because tools/build-structure.mjs carries section
+// order into the key order of content-structure.json, and CI compares that
+// against the file shipped in 1.10 key for key — reordering the data would fail
+// that round-trip check while changing nothing in Pawzi, whose Library tab
+// orders itself in code. When the app's own order has to change, this moves
+// into the data and the check is pinned to the release that changed it.
+const EXPLORE_ORDER = ['troubleshooting', 'commands', 'articles'];
+
+/** Sections in reading order; anything unlisted keeps its place at the end. */
+function exploreSections(sections) {
+  const rank = (sec) => {
+    const at = EXPLORE_ORDER.indexOf(sec.id);
+    return at === -1 ? EXPLORE_ORDER.length : at;
+  };
+  // Sort is stable, so a section nobody listed here still appears — after the
+  // ones that are, in the order the release put them in.
+  return [...sections].sort((a, b) => rank(a) - rank(b));
+}
+
 export function exploreView(ctx) {
   const wrap = el('div', {});
-  for (const sec of ctx.rel.explore.sections || []) {
+  for (const sec of exploreSections(ctx.rel.explore.sections || [])) {
     if (sec.collections) {
       wrap.append(
         section(
@@ -299,18 +319,18 @@ export function exploreView(ctx) {
   return wrap;
 }
 
-export function libraryView(ctx) {
+/**
+ * The flat list of everything in `content/`, filtered by the query.
+ *
+ * The query arrives from the route — `#/<release>/library?q=…` — and the field
+ * that writes it lives in the header, so a search can start from any page. This
+ * view holds no field of its own: one query, one place it is written down.
+ */
+export function libraryView(ctx, query = '') {
   const shipped = new Set(ctx.rel.manifest.items || []);
   const ids = data.itemIds().sort();
 
   const results = el('div', {});
-  const search = el('input', {
-    class: 'search',
-    type: 'search',
-    placeholder: 'Filter by title, id or description',
-    // Filtering repaints only the results, so the field keeps focus and caret.
-    oninput: (e) => paint(e.target.value),
-  });
 
   const unreleased = ids.filter((id) => !shipped.has(id));
 
@@ -369,8 +389,8 @@ export function libraryView(ctx) {
     if (!visible.length) results.append(el('p', { class: 'note', text: 'Nothing matches that.' }));
   }
 
-  paint('');
-  return el('div', {}, el('div', { class: 'toolbar' }, search), results);
+  paint(query);
+  return results;
 }
 
 export function collectionView(ctx, collection) {
@@ -536,12 +556,12 @@ export function itemView(ctx, item, id, siblings) {
   );
 }
 
-/** Where an item page goes back to: the collection it was opened from, else the library. */
+/** Where an item page goes back to: the collection it was opened from, else the flat item list. */
 export function backLink(ctx, siblings) {
   return el('a', {
     class: 'back',
     href: siblings ? ctx.href(`c/${siblings.key}`) : ctx.href('library'),
-    text: siblings ? `← ${siblings.title}` : '← Library',
+    text: siblings ? `← ${siblings.title}` : '← All content items',
   });
 }
 

@@ -119,6 +119,11 @@ button.mode + button.mode { border-left: 1px solid var(--line); }
 button.mode:disabled { cursor: default; }
 button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font-weight: 560; }
 
+/* Between the tabs and the right-hand controls, taking the slack between them
+   so both ends stay where they were. */
+.chrome-search { flex: 1 1 10rem; max-width: 20rem; }
+.chrome-search .search { padding: 0.35rem 0.7rem; font-size: 13px; }
+
 .tabs { display: flex; gap: 0.25rem; }
 .tab {
   padding: 0.3rem 0.75rem;
@@ -161,7 +166,6 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
   font-size: 13px;
 }
 .error { color: var(--warn); }
-.toolbar { max-width: 26rem; margin-bottom: 1rem; }
 
 .progress { height: 4px; background: var(--sunken); border-radius: 2px; overflow: hidden; margin-top: 1rem; }
 .progress .bar { height: 100%; background: var(--accent); transition: width 0.2s; }
@@ -435,6 +439,8 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
 @media (max-width: 700px) {
   .chrome { gap: 0.75rem; padding: 0.6rem 1rem; }
   .chrome-right .repo { display: none; }
+  /* The header wraps here; the search takes a row of its own rather than a sliver. */
+  .chrome-search { flex-basis: 100%; max-width: none; order: 1; }
   .page { padding: 1rem 1rem 4rem; }
   .item-head { grid-template-columns: 1fr; gap: 1rem; }
   .item-cover { max-width: 240px; }
