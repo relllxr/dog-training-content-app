@@ -72,6 +72,7 @@ function chrome(active) {
       releaseSelect,
     ),
     el('nav', { class: 'tabs' }, tab('Programs', ''), tab('Library Tab', 'explore'), tab('All content items', 'library')),
+    el('div', { class: 'chrome-search' }, searchField),
     el(
       'div',
       { class: 'chrome-right' },
@@ -149,6 +150,61 @@ function modeSwitch(active) {
   );
 }
 
+// ------------------------------------------------------------------- search
+
+// The query lives in the route — #/<release>/library?q=… — and this field is a
+// reflection of it, not a second copy of it: typing rewrites the hash, and the
+// All content items tab paints from what the hash says. That is what lets a
+// search start on a program or an item page and land on the list.
+//
+// One node, kept between repaints, because chrome() is rebuilt on every route
+// and a field replaced under the cursor loses the word being typed into it.
+const searchField = el('input', {
+  class: 'search',
+  type: 'search',
+  placeholder: 'Search all content items',
+  title: 'Search every item in content/, from any page',
+  oninput: () => queueSearch(),
+  onkeydown: (e) => {
+    if (e.key !== 'Escape') return;
+    searchField.value = '';
+    queueSearch();
+  },
+});
+
+let searchTimer = null;
+// True for exactly the debounce, the one window in which the field is ahead of
+// the route rather than behind it. See the repaint in route().
+let searchPending = false;
+
+/**
+ * Writes the field into the route, a beat after the typing stops.
+ *
+ * Debounced because a keystroke repaints the whole list. The first keystroke
+ * pushes and the rest replace, so Back leaves the search for the page it
+ * started from rather than walking back through the word a letter at a time.
+ */
+function queueSearch() {
+  clearTimeout(searchTimer);
+  searchPending = true;
+  searchTimer = setTimeout(() => {
+    searchPending = false;
+    if (!state.rel) return;
+    const query = searchField.value.trim();
+    const target = href(state.rel.id)('library', query ? { q: query } : {});
+    if (location.hash === target) return;
+    const here = parseHash();
+    if (here.rest[0] === 'library' && here.params.get('q')) {
+      // Already inside a search: this is the same step of history, refined.
+      history.replaceState(null, '', target);
+      thread.close();
+      route().catch(() => {});
+    } else {
+      location.hash = target;
+    }
+  }, 200);
+}
+
 function loadingScreen(text, node) {
   return el('div', { class: 'centered' }, el('p', { class: 'lede', text }), node);
 }
@@ -174,6 +230,10 @@ async function route({ keepScroll = false } = {}) {
   // null means no tab is the current one — an item or a collection sits under
   // one of them but is not one of them.
   let active = null;
+  // The 1180px column is for CRM, where cards are fluid and a line of text
+  // stops reading well past it. Mobile View is a grid of fixed 393px phones, and
+  // that column fits two of them on any screen — so its page takes the window.
+  let wide = false;
 
   if (!head) {
     active = '';
@@ -183,7 +243,7 @@ async function route({ keepScroll = false } = {}) {
     body = views.exploreView(ctx);
   } else if (head === 'library') {
     active = 'library';
-    body = views.libraryView(ctx);
+    body = views.libraryView(ctx, params.get('q') || '');
   } else if (head === 'c') {
     const collection = data.findCollection(state.rel, decodeURIComponent(arg || ''));
     body = collection
@@ -193,8 +253,9 @@ async function route({ keepScroll = false } = {}) {
     const id = decodeURIComponent(arg || '');
     const item = await data.item(id);
     const sibs = siblings(params.get('from'), id);
+    wide = mode() === 'mobile' && Boolean(item);
     body =
-      mode() === 'mobile' && item
+      wide
         ? el(
             'div',
             {},
@@ -208,8 +269,24 @@ async function route({ keepScroll = false } = {}) {
     body = el('p', { class: 'note', text: 'Nothing here.' });
   }
 
+  // The field reflects the route, and is only allowed to differ from it for the
+  // one debounce in which the letters just typed have not reached the hash yet.
+  // Anywhere else the route wins — a Back out of a search has to empty the
+  // field, or it would claim a query the list is not filtered by. Assigning
+  // only on a difference keeps an identical repaint off the caret.
+  const wanted = params.get('q') || '';
+  if (!searchPending && searchField.value !== wanted) searchField.value = wanted;
+  const typing = document.activeElement === searchField;
+  const caret = typing ? [searchField.selectionStart, searchField.selectionEnd] : null;
+
   const at = window.scrollY;
-  show(chrome(active), el('main', { class: 'page' }, body));
+  show(chrome(active), el('main', { class: `page${wide ? ' page-wide' : ''}` }, body));
+  // Moving the field into the new header takes it out of the document, and a
+  // detached element is a blurred one. Put the cursor back where it was.
+  if (typing) {
+    searchField.focus();
+    searchField.setSelectionRange(...caret);
+  }
   // The panel survives a repaint; the focus classes it puts on the page do not.
   thread.refocus();
   // An upload repaints the page under the designer; putting them back at the

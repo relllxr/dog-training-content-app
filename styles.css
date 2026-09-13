@@ -136,6 +136,10 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
 /* -------------------------------------------------------------------- page */
 
 .page { max-width: 1180px; margin: 0 auto; padding: 1.5rem 1.5rem 6rem; }
+/* Mobile View: phones are 393px each and never scale, so the column is what
+   decides how many share a row — 1132px of it is two, on any monitor. The page
+   drops the ceiling and keeps its padding; the phones stay the size they are. */
+.page-wide { max-width: none; }
 .centered { max-width: 32rem; margin: 6rem auto; padding: 0 1.5rem; text-align: center; }
 .centered button { margin: 1rem 0.25rem 0; }
 

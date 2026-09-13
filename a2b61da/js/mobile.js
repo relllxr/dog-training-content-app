@@ -10,7 +10,7 @@
 //   reader  — one phone per entry in screens[], with the progress bar at it
 //   steps   — the 2x2 picture grid and the numbered list, commands only
 
-import { el, imageSlot, coverSlot, screenSlot, stepSlot, screenContext, itemContext } from './views.js';
+import { el, imageSlot, coverSlot, screenSlot, stepSlot, screenContext, itemContext, stepsContext } from './views.js';
 import { threadButton } from './thread.js';
 
 // ------------------------------------------------------------------- icons
@@ -369,7 +369,12 @@ export function mobileItemView(ctx, item, id) {
     );
   });
 
-  if (item.steps?.length) phones.append(slot('Training steps', null, stepsScreen(item)));
+  if (item.steps?.length) {
+    const context = stepsContext(item);
+    phones.append(
+      slot('Training steps', null, stepsScreen(item), threadButton(context, { compact: true }), context.anchor),
+    );
+  }
 
   return phones;
 }
