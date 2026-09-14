@@ -163,7 +163,7 @@ const searchField = el('input', {
   class: 'search',
   type: 'search',
   placeholder: 'Search all content items',
-  title: 'Search every item in content/, from any page',
+  title: 'Search every content item, from any page',
   oninput: () => queueSearch(),
   onkeydown: (e) => {
     if (e.key !== 'Escape') return;

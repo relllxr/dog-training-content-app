@@ -7,11 +7,30 @@
 import * as gh from './gh.js';
 import * as cache from './cache.js';
 import { REF } from '../config.js';
+import { LAYOUT } from './layout.js';
+import { buildStructure, compareVersions, serializeStructure } from './structure.js';
+
+// Before app_content/, items and pictures sat at the top of the repository.
+// The reader is published ahead of the move so that nobody's page goes blank
+// in between, and a page open across it keeps reading; the tree says which
+// layout it is looking at. Remove once the move is on main.
+const LEGACY = {
+  items: 'content',
+  structure: null,
+  images: {
+    cover: 'images/covers',
+    screen: 'images/content',
+    preview: 'images/previews',
+    card: 'images/troubleshooting',
+  },
+  releases: 'releases',
+};
 
 const decoder = new TextDecoder();
 
 const state = {
   ref: REF,
+  layout: LAYOUT,
   head: null, // commit the file list was read at; null when the ref is not a branch
   files: new Map(), // path -> sha
   items: new Map(), // id   -> path
@@ -26,6 +45,12 @@ export const head = () => state.head;
 export const releases = () => state.releases;
 export const itemIds = () => [...state.items.keys()];
 export const hasFile = (path) => state.files.has(path);
+/** The folder items live in, for saying so on the page. */
+export const itemsDir = () => state.layout.items;
+/** Where an item's JSON is, whether or not it exists yet. */
+export const itemFile = (id) => `${state.layout.items}/${id}.json`;
+/** Where a release's files are. */
+export const releaseFile = (id, name) => `${state.layout.releases}/${id}/${name}`;
 
 /** Reads the file list. Everything else is derived from it. */
 export async function loadTree() {
@@ -40,13 +65,22 @@ export async function loadTree() {
   state.loaded.clear();
   const releases = new Set();
 
+  const moved = data.tree.some((entry) => entry.path.startsWith(`${LAYOUT.items}/`));
+  state.layout = moved ? LAYOUT : LEGACY;
+  const itemsAt = `${state.layout.items}/`;
+  const releasesAt = `${state.layout.releases}/`;
+
   for (const entry of data.tree) {
     if (entry.type !== 'blob') continue;
     state.files.set(entry.path, entry.sha);
-    const item = entry.path.match(/^content\/([^/]+)\.json$/);
-    if (item) state.items.set(item[1], entry.path);
-    const release = entry.path.match(/^releases\/([^/]+)\/release\.json$/);
-    if (release) releases.add(release[1]);
+    if (entry.path.startsWith(itemsAt)) {
+      const item = entry.path.slice(itemsAt.length).match(/^([^/]+)\.json$/);
+      if (item) state.items.set(item[1], entry.path);
+    }
+    if (entry.path.startsWith(releasesAt)) {
+      const release = entry.path.slice(releasesAt.length).match(/^([^/]+)\/release\.json$/);
+      if (release) releases.add(release[1]);
+    }
   }
 
   // v1.10 before v1.9, and v1.10 before v1.2 — compare version parts as numbers.
@@ -77,16 +111,6 @@ async function newerHead(known, remote) {
   // not a real commit of this branch.
   const status = await gh.compare(known, remote).catch(() => 'behind');
   return status === 'behind' || status === 'identical' ? known : remote;
-}
-
-function compareVersions(a, b) {
-  const parts = (v) => v.replace(/^v/, '').split('.').map(Number);
-  const [pa, pb] = [parts(a), parts(b)];
-  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const diff = (pa[i] || 0) - (pb[i] || 0);
-    if (diff) return diff;
-  }
-  return a.localeCompare(b);
 }
 
 async function bytes(path) {
@@ -139,21 +163,39 @@ export async function loadAllItems(onProgress) {
 }
 
 export async function release(id) {
-  const manifest = await json(`releases/${id}/release.json`);
+  const manifest = await json(releaseFile(id, 'release.json'));
   const [programs, explore] = await Promise.all([
-    json(`releases/${id}/${manifest.programs || 'programs.json'}`),
-    json(`releases/${id}/${manifest.explore || 'explore.json'}`),
+    json(releaseFile(id, manifest.programs || 'programs.json')),
+    json(releaseFile(id, manifest.explore || 'explore.json')),
   ]);
   return { id, manifest, programs, explore };
+}
+
+/**
+ * content-structure.json, rebuilt, as a file for a commit — or null when the
+ * commit does not need it.
+ *
+ * The file is built from the newest release and committed next to the content
+ * the app pulls. A change to that release's composition therefore carries the
+ * rebuilt file in the same commit; otherwise the branch would hold a structure
+ * that disagrees with its own release, and the validator fails on exactly
+ * that. `rel` is read after the JSON has been patched in place.
+ */
+export function structureFile(rel) {
+  const path = state.layout.structure;
+  if (!path || !rel || rel.id !== state.releases[0]) return null;
+  const structure = buildStructure(rel.programs, rel.explore);
+  const text = serializeStructure(structure);
+  return { path, text, json: structure, bytes: new TextEncoder().encode(text).buffer };
 }
 
 // ------------------------------------------------------------------ assets
 
 const FOLDER = {
-  cover: (imageId) => `images/covers/${imageId}`,
-  screen: (imageId) => `images/content/${imageId}`,
-  preview: (itemId) => `images/previews/preview_${itemId}`,
-  card: (imageId) => `images/troubleshooting/preview_${imageId}`,
+  cover: (imageId) => `${state.layout.images.cover}/${imageId}`,
+  screen: (imageId) => `${state.layout.images.screen}/${imageId}`,
+  preview: (itemId) => `${state.layout.images.preview}/preview_${itemId}`,
+  card: (imageId) => `${state.layout.images.card}/preview_${imageId}`,
 };
 
 /** The file backing an imageId, preferring @2x — 2x phone width is enough here. */
@@ -170,18 +212,46 @@ export function assetPath(kind, name) {
 /** The path an asset takes minus its density suffix — where an upload writes. */
 export const assetStem = (kind, name) => FOLDER[kind](name);
 
-/** Which screens and steps point at an asset — what a redraw would change. */
-export function usesOfImageId(imageId) {
+/**
+ * What points at an asset — what a redraw would change, or, with `except` the
+ * reference an unlink is taking off, what is left pointing at it afterwards.
+ *
+ * The answer keeps to the folder the asset lives in: a cover and a screen
+ * picture can share a name and still be two files. A preview is named by
+ * nothing, and cards are looked for in the releases this page has read.
+ */
+export function usesOfImageId(kind, imageId, except) {
   const out = [];
+  const names = (object) => object && object !== except && object.imageId === imageId;
+
+  if (kind === 'card') {
+    for (const id of state.releases) {
+      const manifest = state.loaded.get(releaseFile(id, 'release.json'));
+      if (!manifest) continue;
+      const rel = {
+        programs: state.loaded.get(releaseFile(id, manifest.programs || 'programs.json')),
+        explore: state.loaded.get(releaseFile(id, manifest.explore || 'explore.json')),
+      };
+      for (const collection of allCollections(rel)) {
+        if (names(collection)) out.push(`${collection.id} in ${id}`);
+      }
+    }
+    return out;
+  }
+  if (kind !== 'cover' && kind !== 'screen') return out;
+
   for (const [id, path] of state.items) {
     const item = state.loaded.get(path);
     if (!item) continue;
-    if (item.imageId === imageId) out.push(`${id} cover`);
+    if (kind === 'cover') {
+      if (names(item)) out.push(`${id} cover`);
+      continue;
+    }
     for (const screen of item.screens || []) {
-      if (screen.imageId === imageId) out.push(`${id} / ${screen.id}`);
+      if (names(screen)) out.push(`${id} / ${screen.id}`);
     }
     for (const step of item.steps || []) {
-      if (step.imageId === imageId) out.push(`${id} step ${step.index}`);
+      if (names(step)) out.push(`${id} step ${step.index}`);
     }
   }
   return out;

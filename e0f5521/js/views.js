@@ -56,7 +56,8 @@ const observer = new IntersectionObserver(
  *
  * `slot` makes the same box take a dropped file — see upload.js. Every state
  * accepts one: a hatched screen is exactly where a picture is wanted, and a red
- * one is where a name is waiting for the file it promised.
+ * one is where a name is waiting for the file it promised. A slot whose JSON
+ * names a picture can also let go of the name, drawn or missing.
  */
 export function imageSlot(kind, imageId, { ratio = '4 / 3', label = 'No image yet', soft = false, slot } = {}) {
   // ratio: null lets the caller's CSS size the box — the mockup views place
@@ -114,29 +115,32 @@ export function imageSlot(kind, imageId, { ratio = '4 / 3', label = 'No image ye
 // target because nothing in any JSON names a preview.
 
 export const coverSlot = (item) => ({
-  file: `content/${item.id}.json`,
+  file: data.itemFile(item.id),
   target: item,
   what: `the cover of ${item.id}`,
 });
 
 export const screenSlot = (item, screen) => ({
-  file: `content/${item.id}.json`,
+  file: data.itemFile(item.id),
   target: screen,
   what: `${item.id} / ${screen.id}`,
 });
 
 export const stepSlot = (item, step) => ({
-  file: `content/${item.id}.json`,
+  file: data.itemFile(item.id),
   target: step,
   what: `${item.id} step ${step.index}`,
 });
 
 export const previewSlot = (itemId) => ({ file: null, target: null, what: `the preview of ${itemId}` });
 
+// A card is the one slot whose name is part of the composition, so it carries
+// its release: changing it can mean rebuilding content-structure.json too.
 export const cardSlot = (ctx, collection) => ({
-  file: `releases/${ctx.rel.id}/${ctx.rel.manifest.explore || 'explore.json'}`,
+  file: data.releaseFile(ctx.rel.id, ctx.rel.manifest.explore || 'explore.json'),
   target: collection,
   what: `the card picture of ${collection.id}`,
+  rel: ctx.rel,
 });
 
 // ------------------------------------------------------------- note anchors
@@ -196,7 +200,7 @@ function itemCard(ctx, id, { from } = {}) {
     return el(
       'a',
       { class: 'card card-missing', href },
-      el('div', { class: 'card-body' }, el('code', { text: id }), el('p', { text: 'Not in content/' })),
+      el('div', { class: 'card-body' }, el('code', { text: id }), el('p', { text: `Not in ${data.itemsDir()}/` })),
     );
   }
 
@@ -328,7 +332,7 @@ export function exploreView(ctx) {
 }
 
 /**
- * The flat list of everything in `content/`, filtered by the query.
+ * The flat list of every item file, filtered by the query.
  *
  * The query arrives from the route — `#/<release>/library?q=…` — and the field
  * that writes it lives in the header, so a search can start from any page. This
@@ -366,7 +370,7 @@ export function libraryView(ctx, query = '') {
         el(
           'p',
           { class: 'note' },
-          `${unreleased.length} items are in content/ but not in ${ctx.rel.id}: `,
+          `${unreleased.length} items are in ${data.itemsDir()}/ but not in ${ctx.rel.id}: `,
           el('code', { text: unreleased.join(', ') }),
         ),
       );
@@ -453,7 +457,7 @@ export function itemView(ctx, item, id, siblings) {
       { class: 'page-head' },
       el('a', { class: 'back', href: ctx.href(''), text: '← Back' }),
       el('h1', { text: id }),
-      el('p', { class: 'note', text: 'No such file in content/.' }),
+      el('p', { class: 'note', text: `No such file in ${data.itemsDir()}/.` }),
     );
   }
 

@@ -4,7 +4,8 @@
 // @3x, and the JSON that starts pointing at it. The Contents API writes one
 // file per commit, which would put two broken states in the history and leave a
 // race between them. So the whole commit is assembled through the Git Data API
-// (blobs -> tree -> commit) and the branch is moved once at the end.
+// (blobs -> tree -> commit) and the branch is moved once at the end. An unlink
+// is one file, and goes the same way for the head check and the queue.
 //
 // The branch is moved without force, and the head is checked against the one
 // the file list was read at. If anyone pushed in between, this refuses rather
@@ -115,7 +116,19 @@ export function setImageId(target, value) {
   return before;
 }
 
-/** Puts an object back the way `setImageId` found it, when a commit fails. */
+/**
+ * Removes `imageId` from an object, and says how to put it back — the same
+ * entries `setImageId` returns. The order of keys is part of what `restore`
+ * brings back, and it matters: the file is written whole through `serialize`,
+ * so a key restored to the end would turn a one-line change into a rewrite.
+ */
+export function unsetImageId(target) {
+  const before = Object.entries(target);
+  delete target.imageId;
+  return before;
+}
+
+/** Puts an object back the way `setImageId` or `unsetImageId` found it, when a commit fails. */
 export function restore(target, entries) {
   for (const key of Object.keys(target)) delete target[key];
   for (const [key, value] of entries) target[key] = value;
