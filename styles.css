@@ -287,27 +287,36 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
 
 /* ------------------------------------------------------------- drop targets */
 
-/* Any picture slot takes a file. The affordance stays out of the way until the
-   pointer or a drag arrives - a review page must not read as a form. */
-.shot-drop .shot-add {
+/* Any picture slot takes a file. The buttons stay out of the way until the
+   pointer or a drag arrives - a review page must not read as a form - and once
+   it has they are plainly there: opaque, full contrast, big enough to hit over
+   any drawing, light or dark. */
+.shot-drop .shot-add,
+.shot-drop .shot-unlink {
   position: absolute;
   z-index: 3;
-  right: 5px;
-  top: 5px;
-  width: 24px;
-  height: 24px;
+  top: 6px;
   padding: 0;
+  display: grid;
+  place-items: center;
   line-height: 1;
-  font-size: 15px;
+  font-weight: 600;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  color: var(--muted);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.3);
   opacity: 0;
-  transition: opacity 0.12s;
+  transition: opacity 0.12s, background-color 0.12s, color 0.12s;
 }
-.shot-drop:hover .shot-add,
-.shot-drop .shot-add:focus-visible { opacity: 1; }
-.shot-drop .shot-add:hover { color: var(--accent); border-color: var(--accent); }
+.shot-drop .shot-add { right: 6px; width: 30px; height: 30px; font-size: 20px; }
+/* Unlinking is rare, and must never be what a click meant for upload hits: the
+   opposite corner, and a size smaller than the +. */
+.shot-drop .shot-unlink { left: 6px; top: 8px; width: 26px; height: 26px; font-size: 17px; }
+.shot-drop:hover :is(.shot-add, .shot-unlink),
+.shot-drop :is(.shot-add, .shot-unlink):focus-visible { opacity: 1; }
+.shot-drop .shot-add:hover { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+.shot-drop .shot-unlink:hover { background: var(--warn); border-color: var(--warn); color: var(--bg); }
 
 .shot-over { outline: 2px dashed var(--accent); outline-offset: -3px; }
 .shot-over::after {
@@ -372,6 +381,9 @@ button.mode.mode-on { background: var(--accent-soft); color: var(--accent); font
   overflow-x: auto;
 }
 .dlg-plan li { white-space: nowrap; }
+/* An unlink: the line that goes, then the files that do not. */
+.dlg-plan .dlg-removed { color: var(--warn); }
+.dlg-removed + .dlg-stays { margin-top: 0.4rem; }
 .dlg-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.25rem; }
 .dlg-actions .primary { background: var(--accent); color: var(--bg); border-color: transparent; }
 .dlg-actions .primary:disabled { opacity: 0.5; cursor: default; }

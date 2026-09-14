@@ -9,6 +9,12 @@
 // Every slot in the reader is droppable, in both CRM and Mobile views. The
 // dialog is the gate: nothing reaches GitHub until it has been read and
 // confirmed.
+//
+// The reverse is an unlink: the `imageId` comes off the JSON and the asset
+// stays where it is. A reference can be wrong while the drawing is right — the
+// picture belongs on another screen — and that is fixed by removing the
+// reference, not the file. Deleting an asset is not something one button in a
+// browser does: another screen may point at it.
 
 import { el } from './views.js';
 import * as data from './data.js';
@@ -70,6 +76,26 @@ export function attach(figure, slot) {
   });
   figure.append(pick);
 
+  // Only where the JSON names something. A preview is named by convention and
+  // written nowhere, so taking one off would mean deleting its file, which this
+  // never does. A red "Missing asset" slot does get one: a name with no file
+  // behind it is exactly what an unlink repairs.
+  if (slot.file && slot.imageId) {
+    figure.append(
+      el('button', {
+        type: 'button',
+        class: 'shot-unlink',
+        title: 'Unlink this picture',
+        text: '×',
+        onclick: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          unlink(slot);
+        },
+      }),
+    );
+  }
+
   let depth = 0; // dragenter fires again for every child under the pointer
   const carriesFile = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
 
@@ -104,25 +130,31 @@ export function attach(figure, slot) {
 
 // -------------------------------------------------------------------- dialog
 
-async function open(slot, file) {
-  // The commit will be signed, so the name is asked for before the picture is
-  // read rather than at the end, where it would interrupt a finished decision.
-  if (!(await who.ensure())) return;
-
-  const panel = el('div', { class: 'dlg-body' }, el('p', { class: 'muted', text: `Reading ${file.name}…` }));
+/** The modal both flows open: a heading, what it is about, and a body to fill. */
+function modal(heading, what, panel) {
   const dialog = el(
     'dialog',
     { class: 'dlg', onclose: () => dialog.remove() },
     el(
       'form',
       { method: 'dialog', class: 'dlg-form', onsubmit: (e) => e.preventDefault() },
-      el('h2', { text: `Upload the ${KIND_LABEL[slot.kind]}` }),
-      el('p', { class: 'dlg-what muted', text: slot.what }),
+      el('h2', { text: heading }),
+      el('p', { class: 'dlg-what muted', text: what }),
       panel,
     ),
   );
   document.body.append(dialog);
   dialog.showModal();
+  return dialog;
+}
+
+async function open(slot, file) {
+  // The commit will be signed, so the name is asked for before the picture is
+  // read rather than at the end, where it would interrupt a finished decision.
+  if (!(await who.ensure())) return;
+
+  const panel = el('div', { class: 'dlg-body' }, el('p', { class: 'muted', text: `Reading ${file.name}…` }));
+  const dialog = modal(`Upload the ${KIND_LABEL[slot.kind]}`, slot.what, panel);
 
   let picture;
   try {
@@ -258,7 +290,7 @@ function fill(dialog, panel, slot, picture) {
       );
     }
     if (valid && data.assetPath(slot.kind, value)) {
-      const uses = slot.kind === 'preview' || slot.kind === 'card' ? [] : data.usesOfImageId(value);
+      const uses = data.usesOfImageId(slot.kind, value);
       said.push(
         `That name exists — both files are replaced${uses.length ? `, and it is on ${uses.join(', ')}` : ''}.`,
       );
@@ -325,5 +357,115 @@ function message(slot, value, picture, replacing) {
     `${picture.three.width}×${picture.three.height} at @3x and ${picture.two.width}×${picture.two.height} at @2x, ` +
     `from ${picture.source.name} (${picture.source.width}×${picture.source.height}).\n` +
     `Uploaded through the reader.\n`
+  );
+}
+
+// -------------------------------------------------------------------- unlink
+
+async function unlink(slot) {
+  // Signed like an upload, and asked for at the same point: before anything is
+  // shown, not in the middle of a decision.
+  if (!(await who.ensure())) return;
+
+  const { kind, imageId } = slot;
+  const panel = el('div', { class: 'dlg-body' }, el('p', { class: 'muted', text: 'Looking for other uses…' }));
+  const dialog = modal(`Unlink ${imageId}?`, `from ${slot.what}`, panel);
+
+  // A card can be named in any release, and "nothing else points at it" is only
+  // true if all of them have been read. They are a few cached blobs.
+  if (kind === 'card') await Promise.all(data.releases().map((id) => data.release(id).catch(() => null)));
+
+  const stem = data.assetStem(kind, imageId);
+  const folder = stem.slice(0, stem.lastIndexOf('/') + 1);
+  const drawn = ['@2x', '@3x'].map((density) => `${stem}${density}.png`).filter((path) => data.hasFile(path));
+  // The slot itself is left out, or the dialog would say the asset is used right here.
+  const uses = data.usesOfImageId(kind, imageId, slot.target);
+
+  let said;
+  if (drawn.length) {
+    said = uses.length
+      ? `The asset is still used on ${uses.join(', ')}.`
+      : `After this nothing points at the asset.${kind === 'screen' ? ' npm run validate will list it as unused.' : ''}`;
+  } else {
+    said = uses.length ? `Still named on ${uses.join(', ')}, which stays a missing asset.` : 'After this nothing names it.';
+  }
+
+  const problem = el('p', { class: 'error' });
+  const confirm = el('button', { type: 'button', class: 'primary', text: 'Unlink', onclick: () => go() });
+  // The same one failure the upload dialog retries: the branch moved between
+  // the head check and the move, so nothing was written.
+  const retry = el('button', {
+    type: 'button',
+    class: 'ghost',
+    text: 'Refresh and retry',
+    hidden: true,
+    onclick: async () => {
+      retry.hidden = true;
+      confirm.disabled = true;
+      confirm.textContent = 'Unlinking…';
+      problem.textContent = '';
+      await data.refreshHead();
+      go();
+    },
+  });
+
+  panel.replaceChildren(
+    el(
+      'ul',
+      { class: 'dlg-plan' },
+      el('li', {}, el('code', { text: slot.file })),
+      el('li', { class: 'dlg-removed' }, el('code', { text: `- "imageId": "${imageId}"` })),
+      drawn.length
+        ? drawn.map((path) => el('li', { class: 'dlg-stays' }, el('code', { text: path }), ' stays'))
+        : el('li', { class: 'dlg-stays' }, 'no file by this name in ', el('code', { text: folder })),
+    ),
+    el('p', { class: 'muted dlg-notes', text: said }),
+    problem,
+    el(
+      'div',
+      { class: 'dlg-actions' },
+      el('button', { type: 'button', class: 'ghost', text: 'Cancel', onclick: () => dialog.close() }),
+      retry,
+      confirm,
+    ),
+  );
+  confirm.focus();
+
+  async function go() {
+    confirm.disabled = true;
+    confirm.textContent = 'Unlinking…';
+    problem.textContent = '';
+
+    // Patched in place, as an upload is, so the page redraws from what it
+    // holds; a failed commit puts the key back where it was.
+    let before;
+    try {
+      const doc = await data.json(slot.file);
+      before = write.unsetImageId(slot.target);
+      const text = write.serialize(doc);
+      const file = { path: slot.file, text, json: doc, bytes: new TextEncoder().encode(text).buffer };
+      const { sha, entries } = await write.commitFiles(unlinkMessage(slot, folder, drawn.length > 0), [file]);
+      data.applyCommit(sha, entries);
+      dialog.close();
+      window.dispatchEvent(new CustomEvent('pawzi:committed', { detail: { sha } }));
+    } catch (e) {
+      if (before) write.restore(slot.target, before);
+      problem.textContent =
+        e instanceof gh.GitHubError || e instanceof write.StaleError ? e.message : `Could not commit: ${e.message}`;
+      retry.hidden = !e.notFastForward;
+      confirm.textContent = 'Unlink';
+      confirm.disabled = false;
+    }
+  }
+}
+
+/** Same voice as an upload: what came off where in the subject, what did not in the body. */
+function unlinkMessage(slot, folder, drawn) {
+  return (
+    `Unlink ${slot.imageId} from ${slot.what}\n\n` +
+    (drawn
+      ? `The asset stays in ${folder}; only the reference is removed.\n`
+      : `No asset in ${folder} carried that name; the reference pointed at nothing.\n`) +
+    `Unlinked through the reader.\n`
   );
 }

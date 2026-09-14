@@ -170,18 +170,46 @@ export function assetPath(kind, name) {
 /** The path an asset takes minus its density suffix — where an upload writes. */
 export const assetStem = (kind, name) => FOLDER[kind](name);
 
-/** Which screens and steps point at an asset — what a redraw would change. */
-export function usesOfImageId(imageId) {
+/**
+ * What points at an asset — what a redraw would change, or, with `except` the
+ * reference an unlink is taking off, what is left pointing at it afterwards.
+ *
+ * The answer keeps to the folder the asset lives in: a cover and a screen
+ * picture can share a name and still be two files. A preview is named by
+ * nothing, and cards are looked for in the releases this page has read.
+ */
+export function usesOfImageId(kind, imageId, except) {
   const out = [];
+  const names = (object) => object && object !== except && object.imageId === imageId;
+
+  if (kind === 'card') {
+    for (const id of state.releases) {
+      const manifest = state.loaded.get(`releases/${id}/release.json`);
+      if (!manifest) continue;
+      const rel = {
+        programs: state.loaded.get(`releases/${id}/${manifest.programs || 'programs.json'}`),
+        explore: state.loaded.get(`releases/${id}/${manifest.explore || 'explore.json'}`),
+      };
+      for (const collection of allCollections(rel)) {
+        if (names(collection)) out.push(`${collection.id} in ${id}`);
+      }
+    }
+    return out;
+  }
+  if (kind !== 'cover' && kind !== 'screen') return out;
+
   for (const [id, path] of state.items) {
     const item = state.loaded.get(path);
     if (!item) continue;
-    if (item.imageId === imageId) out.push(`${id} cover`);
+    if (kind === 'cover') {
+      if (names(item)) out.push(`${id} cover`);
+      continue;
+    }
     for (const screen of item.screens || []) {
-      if (screen.imageId === imageId) out.push(`${id} / ${screen.id}`);
+      if (names(screen)) out.push(`${id} / ${screen.id}`);
     }
     for (const step of item.steps || []) {
-      if (step.imageId === imageId) out.push(`${id} step ${step.index}`);
+      if (names(step)) out.push(`${id} step ${step.index}`);
     }
   }
   return out;

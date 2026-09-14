@@ -1,7 +1,7 @@
 // Review notes, kept as GitHub Issues.
 //
 // A note is anchored to something you can point at while reading: an item, one
-// of its screens, or one of its training steps. The anchor is written into the
+// of its screens, its training steps screen, or one of its steps. The anchor is written into the
 // issue body as an HTML comment, and that marker is what the reader matches on
 // — not the title, which people rewrite, and not a label, which can be dropped
 // by anyone tidying the repository.
@@ -48,11 +48,15 @@ export const reason = () => state.reason;
 //
 // An item id is unique in content/ and a screen id is unique inside its item,
 // so `<itemId>` and `<itemId>#<screenId>` name a thing for good. Steps are
-// numbered rather than named, hence `#step-<n>`; no screen in v1.10 is called
-// step-1, and one would only collide with its own item's step.
+// numbered rather than named, hence `#step-<n>`. The training steps screen as a
+// whole — the one phone in Mobile View that shows all of them — is `#steps`.
+// Both share the part after `#` with screen ids, and hold for the same reason:
+// no screen in content/ is called `steps` or `step-1`, and one that was would
+// only collide inside its own item.
 
 export const itemAnchor = (itemId) => itemId;
 export const screenAnchor = (itemId, screenId) => `${itemId}#${screenId}`;
+export const stepsAnchor = (itemId) => `${itemId}#steps`;
 export const stepAnchor = (itemId, index) => `${itemId}#step-${index}`;
 export const anchorItem = (anchor) => anchor.split('#')[0];
 

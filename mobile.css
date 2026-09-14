@@ -393,6 +393,9 @@
 .mv-steps .cell { position: relative; width: 181px; height: 135px; }
 .mv-steps .cell .shot { width: 181px; height: 134px; background: none; }
 .mv-steps .cell .shot img { object-fit: contain; padding: 3px 5px; }
+/* The step number holds the corner the unlink button takes everywhere else;
+   the button steps aside rather than cover the mockup's number. */
+.mv-steps .cell .shot-unlink { left: 30px; top: 0; }
 .mv-steps .n {
   position: absolute;
   left: 0;

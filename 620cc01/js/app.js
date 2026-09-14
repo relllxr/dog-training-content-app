@@ -230,6 +230,10 @@ async function route({ keepScroll = false } = {}) {
   // null means no tab is the current one — an item or a collection sits under
   // one of them but is not one of them.
   let active = null;
+  // The 1180px column is for CRM, where cards are fluid and a line of text
+  // stops reading well past it. Mobile View is a grid of fixed 393px phones, and
+  // that column fits two of them on any screen — so its page takes the window.
+  let wide = false;
 
   if (!head) {
     active = '';
@@ -249,8 +253,9 @@ async function route({ keepScroll = false } = {}) {
     const id = decodeURIComponent(arg || '');
     const item = await data.item(id);
     const sibs = siblings(params.get('from'), id);
+    wide = mode() === 'mobile' && Boolean(item);
     body =
-      mode() === 'mobile' && item
+      wide
         ? el(
             'div',
             {},
@@ -275,7 +280,7 @@ async function route({ keepScroll = false } = {}) {
   const caret = typing ? [searchField.selectionStart, searchField.selectionEnd] : null;
 
   const at = window.scrollY;
-  show(chrome(active), el('main', { class: 'page' }, body));
+  show(chrome(active), el('main', { class: `page${wide ? ' page-wide' : ''}` }, body));
   // Moving the field into the new header takes it out of the document, and a
   // detached element is a blurred one. Put the cursor back where it was.
   if (typing) {

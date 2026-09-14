@@ -56,7 +56,8 @@ const observer = new IntersectionObserver(
  *
  * `slot` makes the same box take a dropped file — see upload.js. Every state
  * accepts one: a hatched screen is exactly where a picture is wanted, and a red
- * one is where a name is waiting for the file it promised.
+ * one is where a name is waiting for the file it promised. A slot whose JSON
+ * names a picture can also let go of the name, drawn or missing.
  */
 export function imageSlot(kind, imageId, { ratio = '4 / 3', label = 'No image yet', soft = false, slot } = {}) {
   // ratio: null lets the caller's CSS size the box — the mockup views place
@@ -160,6 +161,14 @@ export const screenContext = (item, screen, index) => ({
   anchor: comments.screenAnchor(item.id, screen.id),
   title: `${item.id} / ${screen.id}`,
   subject: `screen ${index + 1} of \`${item.id}\`, \`${screen.id}\` — “${screen.title}”`,
+});
+
+// The 2x2 grid and the numbered list, as one screen. A note about one step still
+// goes on that step, in CRM, where each has a card of its own.
+export const stepsContext = (item) => ({
+  anchor: comments.stepsAnchor(item.id),
+  title: `${item.id} / steps`,
+  subject: `the training steps screen of \`${item.id}\``,
 });
 
 export const stepContext = (item, step) => ({
