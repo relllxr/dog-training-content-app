@@ -46,12 +46,12 @@ export const reason = () => state.reason;
 
 // ------------------------------------------------------------------ anchors
 //
-// An item id is unique in content/ and a screen id is unique inside its item,
+// An item id is unique in app_content/jsons/ and a screen id is unique inside its item,
 // so `<itemId>` and `<itemId>#<screenId>` name a thing for good. Steps are
 // numbered rather than named, hence `#step-<n>`. The training steps screen as a
 // whole — the one phone in Mobile View that shows all of them — is `#steps`.
 // Both share the part after `#` with screen ids, and hold for the same reason:
-// no screen in content/ is called `steps` or `step-1`, and one that was would
+// no screen in app_content/jsons/ is called `steps` or `step-1`, and one that was would
 // only collide inside its own item.
 
 export const itemAnchor = (itemId) => itemId;

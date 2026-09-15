@@ -274,6 +274,7 @@ function fill(dialog, panel, slot, picture) {
       slot.file && value !== slot.imageId
         ? el('li', {}, el('code', { text: slot.file }), ' — ', el('code', { text: `"imageId": "${value}"` }))
         : null,
+      slot.file && value !== slot.imageId ? rebuiltLine(slot) : null,
     );
 
     const said = [];
@@ -323,6 +324,8 @@ function fill(dialog, panel, slot, picture) {
     }
 
     try {
+      const structure = before && data.structureFile(slot.rel);
+      if (structure) files.push(structure);
       const { sha, entries } = await write.commitFiles(message(slot, value, picture, replacing), files);
       data.applyCommit(sha, entries);
       dialog.close();
@@ -415,6 +418,7 @@ async function unlink(slot) {
       { class: 'dlg-plan' },
       el('li', {}, el('code', { text: slot.file })),
       el('li', { class: 'dlg-removed' }, el('code', { text: `- "imageId": "${imageId}"` })),
+      rebuiltLine(slot),
       drawn.length
         ? drawn.map((path) => el('li', { class: 'dlg-stays' }, el('code', { text: path }), ' stays'))
         : el('li', { class: 'dlg-stays' }, 'no file by this name in ', el('code', { text: folder })),
@@ -444,7 +448,9 @@ async function unlink(slot) {
       before = write.unsetImageId(slot.target);
       const text = write.serialize(doc);
       const file = { path: slot.file, text, json: doc, bytes: new TextEncoder().encode(text).buffer };
-      const { sha, entries } = await write.commitFiles(unlinkMessage(slot, folder, drawn.length > 0), [file]);
+      const structure = data.structureFile(slot.rel);
+      const files = structure ? [file, structure] : [file];
+      const { sha, entries } = await write.commitFiles(unlinkMessage(slot, folder, drawn.length > 0), files);
       data.applyCommit(sha, entries);
       dialog.close();
       window.dispatchEvent(new CustomEvent('pawzi:committed', { detail: { sha } }));
@@ -457,6 +463,12 @@ async function unlink(slot) {
       confirm.disabled = false;
     }
   }
+}
+
+/** The line a dialog adds when the commit carries content-structure.json as well. */
+function rebuiltLine(slot) {
+  const structure = slot.rel && data.structureFile(slot.rel);
+  return structure ? el('li', {}, el('code', { text: structure.path }), ` — rebuilt from ${slot.rel.id}`) : null;
 }
 
 /** Same voice as an upload: what came off where in the subject, what did not in the body. */

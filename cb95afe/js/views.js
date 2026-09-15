@@ -115,29 +115,32 @@ export function imageSlot(kind, imageId, { ratio = '4 / 3', label = 'No image ye
 // target because nothing in any JSON names a preview.
 
 export const coverSlot = (item) => ({
-  file: `content/${item.id}.json`,
+  file: data.itemFile(item.id),
   target: item,
   what: `the cover of ${item.id}`,
 });
 
 export const screenSlot = (item, screen) => ({
-  file: `content/${item.id}.json`,
+  file: data.itemFile(item.id),
   target: screen,
   what: `${item.id} / ${screen.id}`,
 });
 
 export const stepSlot = (item, step) => ({
-  file: `content/${item.id}.json`,
+  file: data.itemFile(item.id),
   target: step,
   what: `${item.id} step ${step.index}`,
 });
 
 export const previewSlot = (itemId) => ({ file: null, target: null, what: `the preview of ${itemId}` });
 
+// A card is the one slot whose name is part of the composition, so it carries
+// its release: changing it can mean rebuilding content-structure.json too.
 export const cardSlot = (ctx, collection) => ({
-  file: `releases/${ctx.rel.id}/${ctx.rel.manifest.explore || 'explore.json'}`,
+  file: data.releaseFile(ctx.rel.id, ctx.rel.manifest.explore || 'explore.json'),
   target: collection,
   what: `the card picture of ${collection.id}`,
+  rel: ctx.rel,
 });
 
 // ------------------------------------------------------------- note anchors
@@ -181,6 +184,30 @@ export const stepContext = (item, step) => ({
 
 const typeBadge = (type) => el('span', { class: `badge badge-${type}`, text: type });
 
+/**
+ * A screen body as the phone reads it. Bodies are prose, with one exception: a
+ * line that starts with `•` is a point, and a run of them is one list — nine
+ * screens across four articles are an opening sentence and then the points.
+ * Drawn as text, the newlines collapse and the points run together into one
+ * paragraph. Any other line of its own is a paragraph. CRM and Mobile View both
+ * draw from this, each in its own type.
+ */
+export function bodyText(text = '') {
+  const nodes = [];
+  let list = null;
+  for (const line of text.split('\n')) {
+    const point = line.match(/^\s*•\s*(.*)$/);
+    if (point) {
+      if (!list) nodes.push((list = el('ul', { class: 'points' })));
+      list.append(el('li', { text: point[1] }));
+    } else {
+      list = null;
+      if (line.trim()) nodes.push(el('p', { text: line }));
+    }
+  }
+  return nodes;
+}
+
 function difficultyDots(level) {
   // The scale is five (schema/item.command.json: maximum 5), same as the paws in
   // Mobile View; v1.10 only ever reaches 4, so the fifth dot stays grey.
@@ -197,7 +224,7 @@ function itemCard(ctx, id, { from } = {}) {
     return el(
       'a',
       { class: 'card card-missing', href },
-      el('div', { class: 'card-body' }, el('code', { text: id }), el('p', { text: 'Not in content/' })),
+      el('div', { class: 'card-body' }, el('code', { text: id }), el('p', { text: `Not in ${data.itemsDir()}/` })),
     );
   }
 
@@ -329,7 +356,19 @@ export function exploreView(ctx) {
 }
 
 /**
- * The flat list of everything in `content/`, filtered by the query.
+ * Text reduced to its words, for search. An id is kebab-case and a title
+ * carries quotes — `sit-command`, "Sit" Command — and people type either the
+ * way they remember it, so both sides of a comparison drop case and everything
+ * between the letters: `sit command`, `Sit-Command` and `"sit` all find it.
+ */
+const words = (text) =>
+  (text || '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+
+/**
+ * The flat list of every item file, filtered by the query.
  *
  * The query arrives from the route — `#/<release>/library?q=…` — and the field
  * that writes it lives in the header, so a search can start from any page. This
@@ -344,21 +383,26 @@ export function libraryView(ctx, query = '') {
   const unreleased = ids.filter((id) => !shipped.has(id));
 
   function paint(query) {
-    const q = query.trim().toLowerCase();
-    const match = (id) => {
-      if (!q) return true;
+    const q = words(query);
+    // An item is found by its name — the id or the title — or, failing that,
+    // by its description. A name outranks a description: `sit` is looking for
+    // "Sit" Command, not for the seven articles that mention sitting, so those
+    // come after every name that matched, in a section that says why they are
+    // there.
+    const found = (id) => {
       const item = data.itemSync(id);
-      return (
-        id.includes(q) ||
-        (item?.title || '').toLowerCase().includes(q) ||
-        (item?.contentDescription || '').toLowerCase().includes(q)
-      );
+      if (!q || words(id).includes(q) || words(item?.title).includes(q)) return 'name';
+      if (words(item?.contentDescription).includes(q)) return 'description';
+      return null;
     };
-    const visible = ids.filter(match);
+    const hits = new Map(ids.map((id) => [id, found(id)]));
+    const named = ids.filter((id) => hits.get(id) === 'name');
+    const described = ids.filter((id) => hits.get(id) === 'description');
     const groups = [
-      ['Articles', visible.filter((id) => data.itemSync(id)?.type === 'article')],
-      ['Commands', visible.filter((id) => data.itemSync(id)?.type === 'command')],
-      ['Other types', visible.filter((id) => !['article', 'command'].includes(data.itemSync(id)?.type))],
+      ['Articles', named.filter((id) => data.itemSync(id)?.type === 'article')],
+      ['Commands', named.filter((id) => data.itemSync(id)?.type === 'command')],
+      ['Other types', named.filter((id) => !['article', 'command'].includes(data.itemSync(id)?.type))],
+      ['Only in the description', described],
     ];
 
     results.replaceChildren();
@@ -367,7 +411,7 @@ export function libraryView(ctx, query = '') {
         el(
           'p',
           { class: 'note' },
-          `${unreleased.length} items are in content/ but not in ${ctx.rel.id}: `,
+          `${unreleased.length} items are in ${data.itemsDir()}/ but not in ${ctx.rel.id}: `,
           el('code', { text: unreleased.join(', ') }),
         ),
       );
@@ -395,7 +439,7 @@ export function libraryView(ctx, query = '') {
         ),
       );
     }
-    if (!visible.length) results.append(el('p', { class: 'note', text: 'Nothing matches that.' }));
+    if (!named.length && !described.length) results.append(el('p', { class: 'note', text: 'Nothing matches that.' }));
   }
 
   paint(query);
@@ -454,7 +498,7 @@ export function itemView(ctx, item, id, siblings) {
       { class: 'page-head' },
       el('a', { class: 'back', href: ctx.href(''), text: '← Back' }),
       el('h1', { text: id }),
-      el('p', { class: 'note', text: 'No such file in content/.' }),
+      el('p', { class: 'note', text: `No such file in ${data.itemsDir()}/.` }),
     );
   }
 
@@ -520,7 +564,7 @@ export function itemView(ctx, item, id, siblings) {
           'div',
           { class: 'phone-text' },
           el('h3', { text: screen.title }),
-          el('p', { text: screen.body }),
+          bodyText(screen.body),
         ),
       );
     }),

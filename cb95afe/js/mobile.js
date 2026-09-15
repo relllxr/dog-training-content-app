@@ -10,7 +10,17 @@
 //   reader  — one phone per entry in screens[], with the progress bar at it
 //   steps   — the 2x2 picture grid and the numbered list, commands only
 
-import { el, imageSlot, coverSlot, screenSlot, stepSlot, screenContext, itemContext, stepsContext } from './views.js';
+import {
+  el,
+  bodyText,
+  imageSlot,
+  coverSlot,
+  screenSlot,
+  stepSlot,
+  screenContext,
+  itemContext,
+  stepsContext,
+} from './views.js';
 import { threadButton } from './thread.js';
 
 // ------------------------------------------------------------------- icons
@@ -151,7 +161,7 @@ function readerScreen(item, screen, index) {
         'div',
         { class: 'mv-text' },
         el('h2', { text: screen.title }),
-        el('p', { text: screen.body }),
+        bodyText(screen.body),
       ),
     ),
     cta('Next'),

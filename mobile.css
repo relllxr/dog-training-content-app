@@ -220,6 +220,36 @@
   line-height: 21.6px;
   color: #000000;
 }
+/* A body whose lines start with `•` — see bodyText() in js/views.js. The
+   geometry is Figma XaHNHcdGNO774GyzExNl9L, frame no-image (0:107): a marker
+   column 9 wide, 8 to the text, 10 between points, 12 above the list, the
+   marker in the title's colour. The type stays the reader's own, so a screen
+   with points reads in the same letters as the one before it. */
+.mv-reader .points {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mv-reader .points li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 21.6px;
+  color: #000000;
+}
+.mv-reader .points li::before {
+  content: '•';
+  flex: none;
+  width: 9px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--blue);
+}
 
 /* -------------------------------------------------------- article info screen */
 
